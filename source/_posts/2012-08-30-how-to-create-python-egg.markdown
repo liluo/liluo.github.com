@@ -230,15 +230,18 @@ include README.rst
 #### 偶尔去看一下自己的 Egg 在 PyPI 上的下载数也挺欢乐的
 
 ``` bash
-py-oauth2 
+
+version: 0.0.3
+py-oauth2-0.0.3.tar.gz(232)
+py_oauth2-0.0.3-py2.7.egg(198)
 
 version: 0.0.2
-py-oauth2-0.0.2.tar.gz(210)
-py_oauth2-0.0.2-py2.6.egg(268)
-py_oauth2-0.0.2-py2.7.egg(137)
+py-oauth2-0.0.2.tar.gz(362)
+py_oauth2-0.0.2-py2.6.egg(419)
+py_oauth2-0.0.2-py2.7.egg(288)
 
 version: 0.0.1
-py_oauth2-0.0.1-py2.6.egg(315)
+py_oauth2-0.0.1-py2.6.egg(463)
 
 ```
 
