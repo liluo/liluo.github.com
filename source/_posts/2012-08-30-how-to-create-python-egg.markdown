@@ -231,17 +231,17 @@ include README.rst
 
 ``` bash
 
-version: 0.0.3
-py-oauth2-0.0.3.tar.gz(232)
-py_oauth2-0.0.3-py2.7.egg(198)
+Version: 0.0.3
+py-oauth2-0.0.3.tar.gz(251)
+py_oauth2-0.0.3-py2.7.egg(218)
 
-version: 0.0.2
-py-oauth2-0.0.2.tar.gz(362)
-py_oauth2-0.0.2-py2.6.egg(419)
-py_oauth2-0.0.2-py2.7.egg(288)
+Version: 0.0.2
+py-oauth2-0.0.2.tar.gz(376)
+py_oauth2-0.0.2-py2.6.egg(435)
+py_oauth2-0.0.2-py2.7.egg(304)
 
-version: 0.0.1
-py_oauth2-0.0.1-py2.6.egg(463)
+Version: 0.0.1
+py_oauth2-0.0.1-py2.6.egg(478)
 
 ```
 
