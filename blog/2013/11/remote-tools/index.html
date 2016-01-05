@@ -1,0 +1,356 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Remote 之工具篇 - 落</title>
+  <meta name="author" content="落">
+
+  
+  <meta name="description" content="最近从北京转到了上海 Office, 与北京技术团队的沟通协作也自然的变成了 Remote。截止到现在已经有一个月多的时间，分享一下自己使用到的工具。 Code Code + PullRequest 的开发流程，完全没有距离上的差异。 Code 是豆瓣内部的代码托管工具(类似 Github)， &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://liluo.org/blog/2013/11/remote-tools/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="落" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">落</a></h1>
+  
+    <h2>落就是一道风景线</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:liluo.org" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+  <li><a href="/about/">About</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Remote 之工具篇</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-11-13T00:02:00+08:00" pubdate data-updated="true">Nov 13<span>th</span>, 2013</time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>最近从北京转到了上海 Office, 与北京技术团队的沟通协作也自然的变成了 Remote。截止到现在已经有一个月多的时间，分享一下自己使用到的工具。</p>
+
+<!-- more -->
+
+
+<h3>Code</h3>
+
+<p><img src="http://i1170.photobucket.com/albums/r539/liluoliluo/logo1_zps6f5124ed.png" alt="Code logo" /></p>
+
+<p>Code + PullRequest 的开发流程，完全没有距离上的差异。</p>
+
+<p><em>Code 是豆瓣内部的代码托管工具(类似 Github)，具体介绍可以看 <a href="http://www.slideshare.net/qingfeng/code-13367019">&lt;Code, 豆瓣工程师乐园></a>、 <a href="http://www.qconshanghai.com/node/383">&lt;工程师文化中的工具“情结”></a>。</em></p>
+
+<h3>Skype</h3>
+
+<p><img src="http://i1170.photobucket.com/albums/r539/liluoliluo/skype-logo_zps4c5d4646.png" alt="Skype logo" /></p>
+
+<p><a href="http://www.skype.com/en/">Skype</a> 是我们平时使用比较多的 IM(另外还有纯工程师交流 IRC)，除了方便的群组和文字聊天功能外，语音和视频也很棒。</p>
+
+<p>工作中讨论、交流，每周五参加 Firelabs 分享全靠它，是目前体验到最好的语音和视频工具(Hangouts 卡顿蛮严重的……)。</p>
+
+<p>另外还有一个实用的共享屏幕(Share Screen)，比如说参加 Firelabs 时看不清投影时可以请分享者共享屏幕给自己。</p>
+
+<h3>Tmux</h3>
+
+<p><img src="http://i1170.photobucket.com/albums/r539/liluoliluo/042e2390-5a4b-4cb2-9179-440989033f02_zpsa60cd8e5.jpg?t=1384268363" alt="Tmux" /></p>
+
+<p>之前仅仅使用 <a href="http://tmux.sourceforge.net/">Tmux</a> 作为终端复用 + 分屏的工具，最近发现其在结对编程方面也是一大利器!!!</p>
+
+<p>使用 Tmux 进行结对编程(需要双方使用各自账号登陆到同一台开发机)：</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>Allow another user access to your tmux session:
+</span><span class='line'># specify the name of your tmux socket with -S when creating it
+</span><span class='line'>tmux -S /tmp/pair
+</span><span class='line'># chmod to allow other users to access it
+</span><span class='line'>chmod 777 /tmp/pair
+</span><span class='line'> 
+</span><span class='line'># now the other user can connect with
+</span><span class='line'>tmux -S /tmp/pair attach</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>TeamViewer</h3>
+
+<p><img src="http://i1170.photobucket.com/albums/r539/liluoliluo/teamviewer_zpsaf2997cf.png" alt="TeamViewer logo" /></p>
+
+<p><a href="http://www.teamviewer.com/en/index.aspx">TeamViewer</a> 是跨平台的远程访问和远程支持一体化解决方案, 甚至可以使用手机上的客户端来控制笔记本，强烈推荐用一下。</p>
+
+<h3>WeChat</h3>
+
+<p>我是最近才开始使用微信的，除了即时、便利之外，和北京的小伙伴们偶尔在群里玩个真心话大冒险的也很有趣，哈哈~</p>
+
+<p>最后，看到自己的博客已经长草了真是……</p>
+
+<p><strong>END</strong></p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">落</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2013-11-13T00:02:00+08:00" pubdate data-updated="true">Nov 13<span>th</span>, 2013</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/douban/'>Douban</a>, <a class='category' href='/blog/categories/remote/'>Remote</a>, <a class='category' href='/blog/categories/tools/'>Tools</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://liluo.org/blog/2013/11/remote-tools/" data-via="liluoliluo" data-counturl="http://liluo.org/blog/2013/11/remote-tools/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2013/03/we-all-love-pull-request/" title="Previous Post: 我们都爱 Pull Request">&laquo; 我们都爱 Pull Request</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2013/12/douban-linguist/" title="Next Post: Douban Linguist">Douban Linguist &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2015/12/mysql-online-ddl/">非 DBA 也要勇敢的 Online(!) DDL</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/12/douban-linguist/">Douban Linguist</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/11/remote-tools/">Remote 之工具篇</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/03/we-all-love-pull-request/">我们都爱 Pull Request</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/08/how-to-create-python-egg/">怎样制作一个 Python Egg</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/liluo">@liluo</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'liluo',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+<section>
+  <h1>Latest Tweets</h1>
+  <ul id="tweets">
+    <li class="loading">Status updating...</li>
+  </ul>
+  <script type="text/javascript">
+    $.domReady(function(){
+      getTwitterFeed("liluoliluo", 4, false);
+    });
+  </script>
+  <script src="/javascripts/twitter.js" type="text/javascript"> </script>
+  
+    <a href="http://twitter.com/liluoliluo" class="twitter-follow-button" data-show-count="false">Follow @liluoliluo</a>
+  
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2016 - 落 -
+  <span>
+    <a href="http://www.miibeian.gov.cn" target="_blank">沪ICP备10005385号</a>
+  </span>
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+  <span>
+    <script src="http://s175.cnzz.com/stat.php?id=1892088&web_id=1892088&show=pic" language="JavaScript" charset="gb2312"></script>
+  </span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'liluo';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://liluo.org/blog/2013/11/remote-tools/';
+        var disqus_url = 'http://liluo.org/blog/2013/11/remote-tools/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Apache | 落]]></title>
+  <link href="http://liluo.org/blog/categories/apache/atom.xml" rel="self"/>
+  <link href="http://liluo.org/"/>
+  <updated>2016-01-03T16:15:14+08:00</updated>
+  <id>http://liluo.org/</id>
+  <author>
+    <name><![CDATA[落]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[运行在Apache中Django后台admin界面CSS丢失]]></title>
+    <link href="http://liluo.org/blog/2010/05/apache-django-admin-lost-css/"/>
+    <updated>2010-05-19T15:27:00+08:00</updated>
+    <id>http://liluo.org/blog/2010/05/apache-django-admin-lost-css</id>
+    <content type="html"><![CDATA[<p>在 Apache 的 conf/extra/httpd-vhosts.conf 加入以下代码:
+```
+<VirtualHost *:80></p>
+
+<pre><code>&lt;Directory "/usr/local/lib/site-packages/django/contrib/admin/media"&gt;
+    Order Deny,Allow
+    Allow from all
+&lt;/Directory&gt;  
+
+Alias "/media" "/usr/local/lib/site-packages/django/contrib/admin/media"
+&lt;Location "/media"&gt;
+    SetHandler None
+&lt;/Location&gt;
+</code></pre>
+
+<p></VirtualHost>
+```</p>
+]]></content>
+  </entry>
+  
+</feed>

@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Egg | 落]]></title>
+  <link href="http://liluo.org/blog/categories/egg/atom.xml" rel="self"/>
+  <link href="http://liluo.org/"/>
+  <updated>2016-01-03T16:15:14+08:00</updated>
+  <id>http://liluo.org/</id>
+  <author>
+    <name><![CDATA[落]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[怎样制作一个 Python Egg]]></title>
+    <link href="http://liluo.org/blog/2012/08/how-to-create-python-egg/"/>
+    <updated>2012-08-30T20:58:00+08:00</updated>
+    <id>http://liluo.org/blog/2012/08/how-to-create-python-egg</id>
+    <content type="html"><![CDATA[<p><img src="http://i1170.photobucket.com/albums/r539/liluoliluo/7f3c8c9e.jpg" title="Python Egg" alt="Python Egg" /></p>
+
+<p>前段时间在玩 OAuth2，尝试了很多个 Python 封装的 OAuth2 第三方库，感觉都不是很对自己胃口(最无语的是那个叫作 oauth2 的库，居然是 OAuth 1.0 的实现？？！！)，于是自己写了一个叫作 <a href="http://pypi.python.org/pypi/py-oauth2/">py-oauth2</a> 的“库”。之所以取这个名字是因为之前用过一个叫 py-trello 的库，以为叫 py-xxx 会很洋气，现在想想真是土死了…</p>
+
+<p>制作打包一个 Python Egg 并部署整个过程还蛮有意思的，下面小教程(这里以制作一个叫作 bee 的 Egg 为例)～</p>
+
+<!-- more -->
+
+
+<h2>制作</h2>
+
+<p>先创建一个项目文件夹:</p>
+
+<p><code>bash
+$ mkdir bee-egg # 这个名字可以随便取
+$ cd bee-egg
+</code></p>
+
+<p>在里边建一个叫 bee 的文件夹(逻辑比较简单的话可以直接建一个叫作 bee.py 的文件)，放业务逻辑代码:</p>
+
+<p><code>bash
+mkdir bee
+touch bee/__init__.py
+</code></p>
+
+<p>其中 bee/<strong>init</strong>.py 写几行代码:</p>
+
+<p>``` python</p>
+
+<h1>-<em>- coding: utf-8 -</em>-</h1>
+
+<p>def hoot():</p>
+
+<pre><code>return 'hum hum'
+</code></pre>
+
+<p>def add(x, y):</p>
+
+<pre><code>return x + y
+</code></pre>
+
+<p>```</p>
+
+<p>在 bee-egg 目录中创建 Egg 的配置文件 setup.py :</p>
+
+<p>```</p>
+
+<h1>!/usr/bin/env python</h1>
+
+<p>from setuptools import setup, find_packages</p>
+
+<p>setup(</p>
+
+<pre><code>name = 'bee',
+version = '0.0.1',
+keywords = ('bee', 'egg'),
+description = 'a simple egg',
+license = 'MIT License',
+
+url = 'http://liluo.org',
+author = 'liluo',
+author_email = 'i@liluo.org',
+
+packages = find_packages(),
+include_package_data = True,
+platforms = 'any',
+install_requires = [],
+</code></pre>
+
+<p>)
+```</p>
+
+<p><em>*setup 中完整的参数及说明可以看</em> <a href="http://docs.python.org/distutils/setupscript.html#additional-meta-data">http://docs.python.org/distutils/setupscript.html#additional-meta-data</a></p>
+
+<p>当前目录文件结构如下：</p>
+
+<p>``` bash
+bee-egg/</p>
+
+<pre><code>    bee/
+       __init__.py
+    setup.py
+</code></pre>
+
+<p>```</p>
+
+<h2>打包</h2>
+
+<p>打包是最重要却又最简单的一步，执行:</p>
+
+<p><code>bash
+python setup.py xxxx
+</code></p>
+
+<p>即可。比较主流的2种打包格式：</p>
+
+<p>``` bash</p>
+
+<h1>以下所有生成文件将在当前路径下 dist 目录中</h1>
+
+<p>python setup.py bdist_egg # 生成类似 bee-0.0.1-py2.7.egg，支持 easy_install
+python setup.py sdist     # 生成类似 bee-0.0.1.tar.gz，支持 pip
+```</p>
+
+<p>当然还有其他非主流格式或者其他选项，可以通过下面这个命令查看：</p>
+
+<p><code>bash
+python setup.py --help-commands                                                                                                            
+</code></p>
+
+<h2>部署到 PyPI</h2>
+
+<h4>注册 Egg</h4>
+
+<p>可以通过 SSH 或者 <a href="http://pypi.python.org/pypi?%3Aaction=submit_form">web form</a> ，SSH 步骤：</p>
+
+<p>``` bash
+$ python setup.py register
+running register
+running egg_info
+writing bee.egg-info/PKG-INFO
+writing top-level names to bee.egg-info/top_level.txt
+writing dependency_links to bee.egg-info/dependency_links.txt
+reading manifest file 'bee.egg-info/SOURCES.txt'
+writing manifest file 'bee.egg-info/SOURCES.txt'
+running check
+We need to know who you are, so please choose either:
+ 1. use your existing login,
+ 2. register as a new user,
+ 3. have the server generate a new password for you (and email it to you), or
+ 4. quit
+Your selection [default 1]:</p>
+
+<p>Username: liluo
+Password:
+Registering bee to http://pypi.python.org/pypi
+Server response (200): OK
+I can store your PyPI login so future submissions will be faster.
+(the login will be stored in /Users/luo/.pypirc)
+Save your login (y/N)?y
+```
+<em>*关于 register 更详细的内容可以看</em> <a href="http://docs.python.org/distutils/packageindex.html">http://docs.python.org/distutils/packageindex.html</a></p>
+
+<h4>上传到 PyPI</h4>
+
+<p>上传文件也是有 SSH 和 web form 2种方法。</p>
+
+<p>web form: 在浏览器登陆到 PyPI 点击 Your packages 中 Egg 的项目，然后选择某个版本的 files 即可看到上传界面。</p>
+
+<p>SSH:
+``` bash
+$ python setup.py sdist bdist_egg upload</p>
+
+<h1>这里上传的是 .tar.gz 压缩包和 .egg 文件</h1>
+
+<h1>屏幕上大片信息输出，最后会看到</h1>
+
+<p>running upload
+Submitting dist/bee-0.0.1.tar.gz to http://pypi.python.org/pypi
+Server response (200): OK
+Submitting dist/bee-0.0.1-py2.7.egg to http://pypi.python.org/pypi
+Server response (200): OK
+```</p>
+
+<h4>安装测试</h4>
+
+<p>先用 pip 安装：
+``` bash
+$ pip install bee
+Downloading/unpacking bee
+  Downloading bee-0.0.1.tar.gz
+  Running setup.py egg_info for package bee</p>
+
+<p>Installing collected packages: bee
+  Running setup.py install for bee</p>
+
+<p>Successfully installed bee
+Cleaning up...
+```</p>
+
+<p>测试：
+``` bash
+$ python</p>
+
+<blockquote><blockquote><blockquote><p>import bee
+dir(bee)
+['<strong>builtins</strong>', '<strong>doc</strong>', '<strong>file</strong>', '<strong>name</strong>', '<strong>package</strong>', '<strong>path</strong>', 'add', 'hoot']
+bee.add(1,3)
+4
+from bee import hoot
+hoot()
+'hum hum'
+```
+Yeah！现在世界人民都可以用 [bee]<a href="http://pypi.python.org/pypi/bee/">http://pypi.python.org/pypi/bee/</a> 这个 Python Egg 了～</p></blockquote></blockquote></blockquote>
+
+<p>卸载掉用 easy_install 试下:
+``` bash
+$ pip uninstall bee
+Uninstalling bee:
+  /Library/Python/2.7/site-packages/bee
+  /Library/Python/2.7/site-packages/bee-0.0.1-py2.7.egg-info
+Proceed (y/n)? y
+  Successfully uninstalled bee
+$ easy_install bee
+Searching for bee
+Reading http://pypi.python.org/simple/bee/
+Reading http://liluo.org
+Best match: bee 0.0.1
+Downloading http://pypi.python.org/packages/2.7/b/bee/bee-0.0.1-py2.7.egg#md5=6b5a719f1ca42367fb05d1e3eb45fbe5
+Processing bee-0.0.1-py2.7.egg
+Moving bee-0.0.1-py2.7.egg to /Library/Python/2.7/site-packages
+Adding bee 0.0.1 to easy-install.pth file</p>
+
+<p>Installed /Library/Python/2.7/site-packages/bee-0.0.1-py2.7.egg
+Processing dependencies for bee
+Finished processing dependencies for bee
+```</p>
+
+<p>可以再重做一下上面的测试，验证一下。</p>
+
+<p><em>*关于 upload 更详细的内容可以看</em> <a href="http://docs.python.org/distutils/uploading.html">http://docs.python.org/distutils/uploading.html</a></p>
+
+<h2>Tips</h2>
+
+<h4>pip install xxxx 时默认只会找对应的压缩包文件</h4>
+
+<p>当时我用 easy_install 安装没问题，但是 pip 每次都说找不到资源。我盯着 <a href="http://www.douban.com/people/hongqn/">@hongqn</a> 在 PyPI 上的 CaoE 足足2分钟才反应过来，原来它是需要一个压缩包格式的文件。</p>
+
+<h4>setup.py 中调用当前目录的文件一定要加 MANIFEST.in 并将调用文件 include 进来</h4>
+
+<p>使用 python setup.py sdist 打包时，如果 setup.py 调用了当前目录中的文件(如README.rst):</p>
+
+<p><code>python
+long_description = open('README.rst').read()
+</code></p>
+
+<p>一定要在增加 MANIFEST.in 文件并将调用文件 include 进来，否则将导致用户在 pip install 时报文件找不到的错误，示例:</p>
+
+<p><code>bash
+$ cat MANIFEST.in
+include README.rst
+</code>
+更详情的可以看 <a href="http://docs.python.org/distutils/sourcedist.html#specifying-the-files-to-distribute">http://docs.python.org/distutils/sourcedist.html#specifying-the-files-to-distribute</a></p>
+
+<h4>偶尔去看一下自己的 Egg 在 PyPI 上的下载数也挺欢乐的</h4>
+
+<p>``` bash</p>
+
+<p>Version: 0.0.3
+py-oauth2-0.0.3.tar.gz(251)
+py_oauth2-0.0.3-py2.7.egg(218)</p>
+
+<p>Version: 0.0.2
+py-oauth2-0.0.2.tar.gz(376)
+py_oauth2-0.0.2-py2.6.egg(435)
+py_oauth2-0.0.2-py2.7.egg(304)</p>
+
+<p>Version: 0.0.1
+py_oauth2-0.0.1-py2.6.egg(478)</p>
+
+<p>```</p>
+
+<p><strong>END</strong></p>
+]]></content>
+  </entry>
+  
+</feed>

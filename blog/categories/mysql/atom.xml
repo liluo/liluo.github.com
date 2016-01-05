@@ -1,0 +1,431 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: MySQL | 落]]></title>
+  <link href="http://liluo.org/blog/categories/mysql/atom.xml" rel="self"/>
+  <link href="http://liluo.org/"/>
+  <updated>2016-01-03T16:15:14+08:00</updated>
+  <id>http://liluo.org/</id>
+  <author>
+    <name><![CDATA[落]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[非 DBA 也要勇敢的 Online(!) DDL]]></title>
+    <link href="http://liluo.org/blog/2015/12/mysql-online-ddl/"/>
+    <updated>2015-12-30T14:14:00+08:00</updated>
+    <id>http://liluo.org/blog/2015/12/mysql-online-ddl</id>
+    <content type="html"><![CDATA[<p>目前我司没有专职 DBA，所以 Online DDL 需要自己动手。最近操作了几次不同数量级（单表 5 million, 20 million, 80 million）的 Online DDL，这里做下记录，希望这些数据能够对其他和我一样非 DBA 的同学提供点儿参考价值。</p>
+
+<!-- more -->
+
+
+<h3>Production Environments</h3>
+
+<p><code>bash
+Database: MySQL
+Version: 5.6.19
+Storage Engine: InnoDB
+Migrate Tool: Active Record Migrations(Ruby on Rails)
+</code></p>
+
+<h3>Round 1（5 million）</h3>
+
+<p>第一个回合是给 500W+ 记录的表增加两个字段和一个索引：</p>
+
+<p><code>bash
+ALTER TABLE `table` ADD COLUMN `foo` INT DEFAULT 0;
+ALTER TABLE `table` ADD COLUMN `bar` DATETIME DEFAULT NULL;
+ALTER TABLE `table` ADD INDEX `index_table_on_bar` (`bar`);
+</code></p>
+
+<p>首次操作这么“大规模”（让 DBA 们贱笑了）的 Online(!!!) DDL 内心是有点小复杂……</p>
+
+<p>当时的心理预期是 10 分钟，但是结果却很乐观：</p>
+
+<p><code>bash
+== AddFooToTable: migrating - Shard: master =============
+-- add_column(:table, :foo, :integer, {:default=&gt;0})
+-&gt; 95.8153s
+== AddFooToTable: migrated (95.8155s) - Shard: master ===
+== AddBarToTable: migrating - Shard: master =============
+-- add_column(:table, :bar, :datetime)
+-&gt; 94.1172s
+-- add_index(:table, :bar)
+-&gt; 10.6757s
+== AddBarToTable: migrated (104.7929s) -- Shard: master =
+</code></p>
+
+<h3>Round 2（20 million）</h3>
+
+<p>第二回合是 2000W+ 记录的表，更改其中一字段类型(varchar -> integer)：</p>
+
+<p><code>bash
+ALTER TABLE `table` MODIFY `foo` INTEGER;
+</code></p>
+
+<p>有了上次的经历之后，这次已然是云淡风轻，耗时也不出意外：</p>
+
+<p><code>bash
+== ChangeFooTypeInTable: migrating - Shard: master ==============
+-- change_column(:table, :foo, :integer)
+-&gt; 513.9101s
+== ChangeFooTypeInTable: migrated (513.9102s) - Shard: master ===
+</code></p>
+
+<h3>Round 3（80 million）</h3>
+
+<p>第三回合是 8000W+ 记录的表，增加一个字段和一个索引：</p>
+
+<p><code>bash
+ALTER TABLE `table` ADD COLUMN `foo` DATETIME DEFAULT NULL;
+ALTER TABLE `table` ADD INDEX `index_table_on_foo` (`foo`);
+</code></p>
+
+<p>这次的耗时远超预期……因为要避开高峰时段在凌晨操作，我是靠着 Xbox 的《Just Dance》和《Sports Rivals》才勉强坚持住。</p>
+
+<p>好吧，来看一下耗时：</p>
+
+<p><code>bash
+== 20151228112810 AddFooToTable: migrating - Shard: master ===============
+-- add_column(:table, :foo, :datetime)
+-&gt; 4313.0770s
+-- add_index(:table, :foo)
+-&gt; 248.9602s
+== 20151228112810 AddFooAtToTable: migrated (4562.0374s) - Shard: master =
+</code></p>
+
+<h3>其他</h3>
+
+<ul>
+<li><p>如果使用 MySQL 的 master-slave 模式, 同步到 slave 大概需要花费同样的时间（这块儿我们没有做特别具体的统计，只是 master 完成后人工检查 slave 情况得出的一个比较粗暴的结论）。</p></li>
+<li><p>MySQL 官方文档：<a href="https://dev.mysql.com/doc/refman/5.6/en/innodb-create-index-overview.html">Overview of Online DDL</a></p></li>
+</ul>
+
+
+<p><strong>END</strong></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Ubuntu 中 MySQL 卸载、重装以及编码问题]]></title>
+    <link href="http://liluo.org/blog/2010/06/ubuntu-uninstall-mysql-and-character/"/>
+    <updated>2010-06-30T17:49:00+08:00</updated>
+    <id>http://liluo.org/blog/2010/06/ubuntu-uninstall-mysql-and-character</id>
+    <content type="html"><![CDATA[<p>最近Ubuntu中的MySQL出了点问题，网上找了N久也没找到答案，于是华丽的将它卸载重装。当然，如标题所写，这里还有涉及到编码问题。</p>
+
+<!-- more -->
+
+
+<h3>卸载</h3>
+
+<p>当初安装时用的是:
+<code>bash
+sudo apt-get install mysql-server mysql-client
+</code></p>
+
+<p>于是相应的卸载应该是:
+<code>bash
+sudo aptitude purge mysql-server mysql-client
+</code></p>
+
+<blockquote><p> 其实我也有尝试用新立得软件管理器来卸载，再次安装的时候却被跳过设置root密码的步骤，应该是卸载的不完全吧？但是不管怎样我用上面的命令卸载之后重新安装正常。</p></blockquote>
+
+<h3>安装 MySQL</h3>
+
+<p><code>bash
+sudo apt-get install mysql-server mysql-client
+</code></p>
+
+<p>是的，依然是原来安装的方式，需要输入root的密码并确认一次。但是当我安装完成之后发现无法使用sudo /etc/init.d/mysql restart来重启以及启动、停止，出现以下提示：</p>
+
+<p><code>bash
+luo@luo-ubuntu:~$ sudo /etc/init.d/mysql restart
+Rather than invoking init scripts through /etc/init.d, use the service(8)
+utility, e.g. service mysql restart
+Since the script you are attempting to invoke has been converted to an
+Upstart job, you may also use the restart(8) utility, e.g. restart mysql
+mysql start/running, process 3942
+luo@luo-ubuntu:~$ sudo /etc/init.d/mysql restartRather than invoking init scripts through /etc/init.d, use the service(8)utility, e.g. service mysql restart
+Since the script you are attempting to invoke has been converted to anUpstart job, you may also use the restart(8) utility, e.g. restart mysqlmysql start/running, process 3942
+</code></p>
+
+<p>于是参照提示使用以下命令行来重启、启动、停止Mysql：
+<code>bash
+sudo restart mysql
+sudo start mysql
+sudo stop mysql
+</code></p>
+
+<h3>编码</h3>
+
+<p>网上有流传说Mysql的默认编码是latin1，我之前的Mysql也是，但是当我重装完成之后进入Mysql使用：show variables like "character_set%"; ，結果如下：</p>
+
+<p><code>bash
+mysql&gt; show variables like 'character%';
++--------------------------+----------------------------+
+| Variable_name | Value |
++--------------------------+----------------------------+
+| character_set_client | utf8 |
+| character_set_connection | utf8 |
+| character_set_database | utf8 |
+| character_set_filesystem | binary |
+| character_set_results | utf8 |
+| character_set_server | utf8 |
+| character_set_system | utf8 |
+| character_sets_dir | /usr/share/mysql/charsets/ |
++--------------------------+----------------------------+
+8 rows in set (0.00 sec)
+</code></p>
+
+<p>这也是新版本带来的吗？我不能确定，所以我还是把修改Mysql编码的方法记录一下。</p>
+
+<p>首先，进入Mysql使用 show variables like 'character%';查看，如果执行编码显示:
+<code>bash
++--------------------------+----------------------------+
+| Variable_name | Value |
++--------------------------+----------------------------+
+| character_set_client | latin1 |
+| character_set_connection | latin1 |
+| character_set_database | latin1 |
+| character_set_filesystem | binary |
+| character_set_results | latin1 |
+| character_set_server | latin1 |
+| character_set_system | utf8 |
+| character_sets_dir | /usr/share/mysql/charsets/ |
++--------------------------+----------------------------+
+</code></p>
+
+<p>说明需要修改编码，修改/etc/mysql/my.cnf文件:</p>
+
+<p>找到客户端配置[client] 在下面添加
+<code>bash
+default-character-set=utf8 默认字符集为utf8
+</code></p>
+
+<p>在找到[mysqld] 添加
+<code>bash
+default-character-set=utf8
+init_connect='SET NAMES utf8'
+</code>
+修改好后，重新启动mysql 即可，查询一下show variables like 'character%'。</p>
+
+<p>如果不出意外，已经Ok。</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Fedora 配置 Nginx + MySQL PostgreSQL Python PHP(FastCGI)]]></title>
+    <link href="http://liluo.org/blog/2010/06/linux-nginx-mysql-postgresql-python-php/"/>
+    <updated>2010-06-04T15:59:00+08:00</updated>
+    <id>http://liluo.org/blog/2010/06/linux-nginx-mysql-postgresql-python-php</id>
+    <content type="html"><![CDATA[<p>记录一下安装配置 Linux+Nginx+MySQL+PostgreSQL+Python+PHP 的过程。就是传说中的 LNMPPP～说白了就是 OS 使用 Linux, Web server 使用 Nginx, 支持Python和PHP，数据库支持PostgreSQL和MySQL。开始吧～</p>
+
+<!-- more -->
+
+
+<h4>Linux</h4>
+
+<p><code>
+Fedora 13(其他Linux发行版可能需要少许变动)
+</code></p>
+
+<h4>Nginx</h4>
+
+<p>安装
+<code>bash
+yum install nginx
+</code></p>
+
+<p>添加到系统自动运行
+<code>bash
+chkconfig --levels 235 nginx on
+</code></p>
+
+<p>启动
+<code>bash
+/etc/init.d/nginx start
+</code>
+Nginx 已经安装并启动，访问下 http://localhost/ 试一下吧</p>
+
+<h4>MySQL</h4>
+
+<p>安装
+<code>bash
+yum install mysql mysql-server
+</code></p>
+
+<p>添加系统服务并启动
+<code>bash
+chkconfig --levels 235 mysqld on
+</code></p>
+
+<p>启动
+<code>bash
+/etc/init.d/mysqld start
+</code></p>
+
+<p>检查是否支持网络连接
+<code>bash
+netstat -tap | grep mysql
+</code></p>
+
+<p>应该会看到这样的状态
+<code>bash
+netstat -tap | grep mysql
+tcp        0      0 *:mysql       *:*              LISTEN      1376/mysqld
+</code></p>
+
+<p>如果不是的话，需要修改/etc/my.cnf文件来启用网络连接支持, 将文件中 "#skip-networking" 的 "#" 去掉</p>
+
+<p>重启mysql
+<code>bash
+/etc/init.d/mysqld restart
+</code></p>
+
+<p>MySQL默认root用户的密码为空，需要给root设置密码(* 代表密码字符)
+<code>bash
+mysqladmin -u root password *****
+</code></p>
+
+<h4>PostgreSQL</h4>
+
+<p>安装
+<code>bash
+yum install postgresql postgresql-server
+</code></p>
+
+<p>然后需要初始化
+<code>bash
+Service postgresql initdb
+</code></p>
+
+<p>打开/var/lib/pgsql/data/pg_hba.conf文件，将Ipv4 local connections一栏中数据改为：
+<code>bash
+host    all         all         0.0.0.0           trust
+</code></p>
+
+<p>添加远程连接，将/var/lib/pgsql/data/postgresql.conf中的listen_sddress和port的注释删除，并改为：
+<code>bash
+listen_address = '*'
+port = 5432
+</code></p>
+
+<p>[可选]安装postgresql管理工具pgadmin3
+<code>bash
+yum install pgadmin3
+</code></p>
+
+<p>[可选]添加对python的支持
+<code>bash
+yum install python-psycopg2
+</code></p>
+
+<h4>Python</h4>
+
+<p>呃，其实 Fedora 自带的 Python 版本已经是比较新的了，只需要安装flup配置一下就ok了。</p>
+
+<p>安装flup
+<code>bash
+sudo easy_install flup
+</code></p>
+
+<p>更新 Nginx 配置文件 nginx.conf
+``` bash
+server {</p>
+
+<pre><code>listen 80;
+server_name localhost;
+
+# site_media - folder in uri for static files
+location /static  {
+    root /var/www/static;
+}
+
+location ~* ^.+\.(jpg|jpeg|gif|png|ico|css|zip|tgz|gz|rar|bz2|doc|xls|exe|pdf|ppt|txt|tar|mid|midi|wav|bmp|rtf|js|mov) {
+    access_log   off; 
+    expires      30d;
+}
+location / {
+    # host and port to fastcgi server
+    fastcgi_pass 127.0.0.1:8000;
+    fastcgi_param PATH_INFO      $fastcgi_script_name;
+    fastcgi_param REQUEST_METHOD $request_method;
+    fastcgi_param QUERY_STRING   $query_string;
+    fastcgi_param CONTENT_TYPE   $content_type;
+    fastcgi_param CONTENT_LENGTH $content_length;
+    fastcgi_pass_header          Authorization;
+    fastcgi_intercept_errors     off;
+}
+</code></pre>
+
+<p>   access_log /var/log/nginx/localhost.access_log main;
+   error_log  /var/log/nginx/localhost.error_log;
+}</p>
+
+<p>```</p>
+
+<h4>PHP</h4>
+
+<p>安装 PHP
+<code>bash
+yum install php-cli php-mysql php-pgsql php-gd php-imap php-ldap php-odbc php-pear php-xml php-xmlrpc php-eaccelerator php-magickwand php-magpierss php-mapserver php-mbstring php-mcrypt php-shout php-snmp php-soap php-tidy
+</code>
+在 /etc/php.ini 文件中追加'cgi.fix_pathinfo=1'</p>
+
+<p>更新 Nginx 配置文件 nginx.conf
+``` bash
+server {</p>
+
+<pre><code>listen       80;
+server_name  localhost;
+
+#charset koi8-r;
+#access_log  logs/host.access.log  main;
+
+location / {
+    root   /usr/share/nginx/html;
+    index  index.php index.html index.htm;
+}
+
+error_page  404              /404.html;
+location = /404.html {
+    root   /usr/share/nginx/html;
+}
+error_page 500 502 503 504  /50x.html;
+location = /50x.html {
+    root   /var/www;
+}
+
+location ~ \.php$ {
+    root           html;
+    fastcgi_pass   127.0.0.1:9000;
+    fastcgi_index  index.php;
+    fastcgi_param  SCRIPT_FILENAME  /var/www$fastcgi_script_name;
+    include        fastcgi_params;
+}
+# deny access to .htaccess files, if Apache's document root
+# concurs with nginx's one
+#
+location ~ /\.ht {
+    deny  all;
+}
+</code></pre>
+
+<p>}
+```</p>
+
+<p>以 FCGI 方式在9000端口启动 PHP
+<code>bash
+/usr/bin/spawn-fcgi -a 127.0.0.1 -p 9000 -u nginx -g nginx -f /usr/bin/php-cgi -P /var/run/fastcgi-php.pid
+</code>
+每次手动启动很麻烦，可以直接把上面内容追加到 /etc/rc.local 文件实现自动启动。</p>
+
+<p><strong>EOF</strong></p>
+]]></content>
+  </entry>
+  
+</feed>

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: CSS | 落]]></title>
+  <link href="http://liluo.org/blog/categories/css/atom.xml" rel="self"/>
+  <link href="http://liluo.org/"/>
+  <updated>2016-01-03T16:15:14+08:00</updated>
+  <id>http://liluo.org/</id>
+  <author>
+    <name><![CDATA[落]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Django使用静态文件(JS, CSS, Images)配置]]></title>
+    <link href="http://liluo.org/blog/2010/05/django-static-files-js-css-images/"/>
+    <updated>2010-05-31T15:38:00+08:00</updated>
+    <id>http://liluo.org/blog/2010/05/django-static-files-js-css-images</id>
+    <content type="html"><![CDATA[<p>Django的URL默认是动态访问，对静态文件访问需要进行设置：</p>
+
+<ul>
+<li><p>在 settings.py 文件中定义参数 STATIC_PATH='./static'（意为当前文件目录下的static文件夹）</p></li>
+<li><p>更新urls.py文件:</p></li>
+</ul>
+
+
+<p>``` python
+import settings</p>
+
+<h1>urlpatterns 添加</h1>
+
+<p>(r'<sup>static/(?P<path>.*)$','django.views.static.serve',{'document_root':</sup> settings.STATIC_PATH})
+```</p>
+
+<ul>
+<li>模板中调用
+<code>python
+&lt;link rel="StyleSheet" href="http://liluo.org/static/css/base.css" type="text/css" /&gt;
+</code></li>
+</ul>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[运行在Apache中Django后台admin界面CSS丢失]]></title>
+    <link href="http://liluo.org/blog/2010/05/apache-django-admin-lost-css/"/>
+    <updated>2010-05-19T15:27:00+08:00</updated>
+    <id>http://liluo.org/blog/2010/05/apache-django-admin-lost-css</id>
+    <content type="html"><![CDATA[<p>在 Apache 的 conf/extra/httpd-vhosts.conf 加入以下代码:
+```
+<VirtualHost *:80></p>
+
+<pre><code>&lt;Directory "/usr/local/lib/site-packages/django/contrib/admin/media"&gt;
+    Order Deny,Allow
+    Allow from all
+&lt;/Directory&gt;  
+
+Alias "/media" "/usr/local/lib/site-packages/django/contrib/admin/media"
+&lt;Location "/media"&gt;
+    SetHandler None
+&lt;/Location&gt;
+</code></pre>
+
+<p></VirtualHost>
+```</p>
+]]></content>
+  </entry>
+  
+</feed>

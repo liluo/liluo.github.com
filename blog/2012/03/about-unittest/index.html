@@ -1,0 +1,320 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>单元测试的那些事 - 落</title>
+  <meta name="author" content="落">
+
+  
+  <meta name="description" content="单元测试是在第一次面豆瓣时候被拒之后才开始接触的，那时候去网上g了此资料，感觉对各种“不可能出错的事情”测试是无聊到极致而又闲着蛋疼的人才会做的。之后也有实践，很长一段时间用&#8221;DDT&#8221;应付下形式，直到有1天…… 今天，在豆瓣的HappyDay现场， &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://liluo.org/blog/2012/03/about-unittest/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="落" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">落</a></h1>
+  
+    <h2>落就是一道风景线</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:liluo.org" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+  <li><a href="/about/">About</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">单元测试的那些事</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-03-14T23:05:00+08:00" pubdate data-updated="true">Mar 14<span>th</span>, 2012</time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>单元测试是在第一次面豆瓣时候被拒之后才开始接触的，那时候去网上g了此资料，感觉对各种“不可能出错的事情”测试是无聊到极致而又闲着蛋疼的人才会做的。之后也有实践，很长一段时间用&#8221;DDT&#8221;应付下形式，直到有1天……</p>
+
+<p>今天，在豆瓣的HappyDay现场，来记录一下自己和unittest之间不得不说的几件事。</p>
+
+<!-- more -->
+
+
+<h3>转变</h3>
+
+<p>在豆瓣入职之后很长一段时间里，@cnborn 和 @zchi 对unittest各种赞扬，也会刻意把一些需要unittest的事情给我来做，让我看各种TDD的书。但是这些都经历了以后，我依然对unittest不屑一顾。</p>
+
+<p>事情的转机在是一个即将下班的6点，那天的状态实在是不好，代码也写的心不在焉，unittest也很给面子的报N多fail。我觉得有必要认真看下是什么情况，结果看到import error，查了下代码发现是自己把方法名给写错了，那种懊悔的心情真的很难形容……对，就是这样一个很低级的错误让我认识到了unittest真正的意义，于是也有意识的会把原来的DDT向TDD 转换。当然之后还会很多大小事件让我更加乐意去实践unittest，比如看下面——</p>
+
+<h3>重构</h3>
+
+<p>2012年初我做了一件特别有意义的开发任务——重构。其实就算是2个月后的现在，内心还是有些感慨。简单来说，这次重构的目的是为了摘掉ORM（关于ORM的坑，谁进去过谁知道……），改进代码质量，统一代码命名、风格等等。说来这是我第1次对项目整体性、系统性的重构，感谢cnborn~</p>
+
+<p>重构的过程会让人成长很多，像一面放大镜，可以学到同事特别棒的代码写法，也会发现一些逻辑及各种xxoo的问题……当然，这些不是重点～重构过程中最怕的是没有unittest！！！在错综而又混乱的命名中实在理解不能，看到那些没有unittest的的实现，根本就是无从下手，各种想痛苦纠结……然后，怎样呢？补unittest的case，有几天时间我就是在疯狂的补写case（最后的case比重构前多了一倍，这都是后话了）。</p>
+
+<p>没有unittest的代码真的会让重构或者维护的同事发疯的，没有unittest是对自己的代码对同事不负责任，只写实现不写unittest的人就是流氓兔！！</p>
+
+<h3>HappyDay</h3>
+
+<p>首先解释下，happyday是豆瓣工程师的盛大节日，绝对远超三八节于女同胞们、六一儿童节于宝宝们的意义。这里提到happyday，是因为今天的happyday的主题就是unittest。将电脑投放到大屏幕，各位coder轮流上去写代码，鸭梨很大有木有……我和zchi是我比赛小分队里第1组上场的，zchi写unittest我写实现。不知道zchi是怎样的状态，我上场整个过程中手都是在抖着，阿门。看来以后有机会应该多练习这种众人注目的鸭梨下写代码的能力 : )</p>
+
+<p>@豆瓣 HappyDay 现场</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">落</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-03-14T23:05:00+08:00" pubdate data-updated="true">Mar 14<span>th</span>, 2012</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/douban/'>Douban</a>, <a class='category' href='/blog/categories/python/'>Python</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://liluo.org/blog/2012/03/about-unittest/" data-via="liluoliluo" data-counturl="http://liluo.org/blog/2012/03/about-unittest/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2011/08/python-add-watermark-with-pil/" title="Previous Post: Python 使用 PIL 给图片添加水印">&laquo; Python 使用 PIL 给图片添加水印</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2012/05/post-file-stream-with-linux-python-ruby-bash/" title="Next Post: 使用Python/Ruby/Bash Post 文件二进制流（stream）">使用Python/Ruby/Bash Post 文件二进制流（stream） &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2015/12/mysql-online-ddl/">非 DBA 也要勇敢的 Online(!) DDL</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/12/douban-linguist/">Douban Linguist</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/11/remote-tools/">Remote 之工具篇</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/03/we-all-love-pull-request/">我们都爱 Pull Request</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/08/how-to-create-python-egg/">怎样制作一个 Python Egg</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/liluo">@liluo</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'liluo',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+<section>
+  <h1>Latest Tweets</h1>
+  <ul id="tweets">
+    <li class="loading">Status updating...</li>
+  </ul>
+  <script type="text/javascript">
+    $.domReady(function(){
+      getTwitterFeed("liluoliluo", 4, false);
+    });
+  </script>
+  <script src="/javascripts/twitter.js" type="text/javascript"> </script>
+  
+    <a href="http://twitter.com/liluoliluo" class="twitter-follow-button" data-show-count="false">Follow @liluoliluo</a>
+  
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2016 - 落 -
+  <span>
+    <a href="http://www.miibeian.gov.cn" target="_blank">沪ICP备10005385号</a>
+  </span>
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+  <span>
+    <script src="http://s175.cnzz.com/stat.php?id=1892088&web_id=1892088&show=pic" language="JavaScript" charset="gb2312"></script>
+  </span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'liluo';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://liluo.org/blog/2012/03/about-unittest/';
+        var disqus_url = 'http://liluo.org/blog/2012/03/about-unittest/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

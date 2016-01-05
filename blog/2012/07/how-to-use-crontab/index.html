@@ -1,0 +1,452 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Crontab 使用入门 - 落</title>
+  <meta name="author" content="落">
+
+  
+  <meta name="description" content="半夜睡不着无聊更新下博客…… Crontab 简介 crontab命令常见于Unix和类Unix的操作系统之中，用于设置周期性被执行的指令。该命令从标准输入设备读取指令，并将其存放于“crontab”文件中，以供之后读取和执行。该词来源于希腊语 chronos(χρόνος)，原意是时间。通常， &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://liluo.org/blog/2012/07/how-to-use-crontab/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="落" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">落</a></h1>
+  
+    <h2>落就是一道风景线</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:liluo.org" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+  <li><a href="/about/">About</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Crontab 使用入门</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-07-02T00:22:00+08:00" pubdate data-updated="true">Jul 2<span>nd</span>, 2012</time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p><em>半夜睡不着无聊更新下博客……</em></p>
+
+<h3>Crontab 简介</h3>
+
+<p>crontab命令常见于Unix和类Unix的操作系统之中，用于设置周期性被执行的指令。该命令从标准输入设备读取指令，并将其存放于“crontab”文件中，以供之后读取和执行。该词来源于希腊语 chronos(χρόνος)，原意是时间。通常，crontab储存的指令被守护进程激活， crond常常在后台运行，每一分钟检查是否有预定的作业需要执行。这类作业一般称为cron jobs。(引用 <a href="http://baike.baidu.com/view/1229061.htm" title="crontab">百度百科</a> )</p>
+
+<h3>Crontab 使用方法</h3>
+
+<p>man crontab 一下会发现有以下2种用法:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>crontab <span class="o">[</span>-u user<span class="o">]</span> file
+</span><span class='line'>crontab <span class="o">[</span>-u user<span class="o">]</span> <span class="o">{</span> -l | -r | -e <span class="o">}</span>
+</span><span class='line'><span class="c"># 其中 -u user 为可选项，当无 -u 项时为当前用户</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>第1行用法，如果 file 文件存在，则将文件复制到 crontabs 目录；如 file 不存在则接受标准输入方式。</p>
+
+<p>第2行用法有3个选项：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>-l 列出当前 crontab 配置<span class="o">(</span>Display the current crontab on standard output<span class="o">)</span>
+</span><span class='line'>-r 删除当前 crontab 配置<span class="o">(</span>Remove the current crontab<span class="o">)</span>
+</span><span class='line'>-e 编辑当前 crontab 配置<span class="o">(</span>Edit the current crontab using the editor<span class="o">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<!-- more -->
+
+
+<h3>Crontab 使用语法</h3>
+
+<p>Crontab 语法很简单，为 &#8220;周期 命令&#8221; 的形式，具体如下：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>*  *  *  *  *  <span class="nb">command </span>to be executed
+</span><span class='line'>┬  ┬  ┬  ┬  ┬
+</span><span class='line'>│  │  │  │  │
+</span><span class='line'>│  │  │  │  │
+</span><span class='line'>│  │  │  │  └───── day of week <span class="o">(</span>0 - 6<span class="o">)</span> <span class="o">(</span>0 is Sunday, or use names<span class="o">)</span>
+</span><span class='line'>│  │  │  └────────── month <span class="o">(</span>1 - 12<span class="o">)</span>
+</span><span class='line'>│  │  └─────────────── day of month <span class="o">(</span>1 - 31<span class="o">)</span>
+</span><span class='line'>│  └──────────────────── hour <span class="o">(</span>0 - 23<span class="o">)</span>
+</span><span class='line'>└───────────────────────── min <span class="o">(</span>0 - 59<span class="o">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>上面例子中 &#8220;*&#8221; 依次代表的是分、时、日、月、礼拜几，看一下周期时间的具体格式：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>Field name  Mandatory?  Allowed values  Allowed special characters
+</span><span class='line'>Minutes       Yes         0-59               * / , -
+</span><span class='line'>Hours         Yes         0-23               * / , -
+</span><span class='line'>Day of month  Yes         1-31               * / , - ? L W
+</span><span class='line'>Month         Yes         1-12 or JAN-DEC    * / , -
+</span><span class='line'>Day of week   Yes         0-6 or SUN-SAT     * / , - ? L <span class="c">#</span>
+</span><span class='line'>Year          No          1970–2099          * / , -
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>特殊符号说明：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>* cron表达式匹配的字段的所有值, 例如第4列用*表示每月
+</span><span class='line'>/ 描述范围的增量, 如第1列使用 */15 表示每15分钟执行一次
+</span><span class='line'>, 表示是一个List，如第1列使用 10,20,30 表示在每小时的第10、20、30分钟执行
+</span><span class='line'>- 定义范围，如第4列使用 1-5 表示在每年的1～5月执行
+</span><span class='line'>? 只在日期和星期字段出现，表示无意义的值，相当于定位符
+</span><span class='line'>L 只在日期和星期字段出现，如在日期字段表示当月最后一天，在星期字段则表示星期6（如果星期字段为4L则为最后当月最后一个星期5<span class="o">)</span>.
+</span><span class='line'>W 只在日期字段出现，如 1W 表示离1号最近的工作日
+</span><span class='line'><span class="c"># 只在星期字段出现，如 4#3 表示当月第3个星期5</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>一些例子：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>每年1月1日0点0分 0 0 1 1 *
+</span><span class='line'>每月1日0点0分    0 0 1 * *
+</span><span class='line'>每周日0点0分     0 0 * * 0
+</span><span class='line'>每天0点0分       0 0 * * *
+</span><span class='line'>每小时0分        0 * * * *
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Tips</h3>
+
+<p><strong>command 标准输出发送 email</strong></p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>30 7 * * * python test.py | mail -e -s <span class="s2">&quot;subject&quot;</span> xxxx@liluo.org
+</span><span class='line'><span class="c"># 需配置好 send_mail</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><strong>命令之后重定向</strong></p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">command</span> &gt; file 把标准输出重定向到文件
+</span><span class='line'><span class="nb">command</span> &gt;&gt; file 把标准输出追加到文件
+</span><span class='line'>
+</span><span class='line'><span class="nb">command </span>1 &gt; file 把标准输出重定向到文件
+</span><span class='line'><span class="nb">command </span>2 &gt; file 把标准错误重定向到文件
+</span><span class='line'><span class="nb">command </span>2 &gt;&gt; file 把标准输出追加到文件
+</span><span class='line'><span class="nb">command </span>2&gt;&amp;1 把command命令标准错误重定向到标准输出
+</span><span class='line'><span class="nb">command</span> &gt; file 2&gt;&amp;1 把标准输出和标准错误一起重定向到文件
+</span><span class='line'><span class="nb">command</span> &gt;&gt; file 2&gt;&amp;1 把标准输出和标准错误一起追加到文件
+</span><span class='line'>
+</span><span class='line'><span class="nb">command</span> &lt; file 把command命令以file文件作为标准输入
+</span><span class='line'><span class="nb">command</span> &lt; file &gt;file2 把command命令以file文件作为标准输入，以file2文件作为标准输出
+</span><span class='line'><span class="nb">command</span> &lt;&amp;- 关闭标准输入
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><strong>EOF</strong></p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">落</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-07-02T00:22:00+08:00" pubdate data-updated="true">Jul 2<span>nd</span>, 2012</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/linux/'>Linux</a>, <a class='category' href='/blog/categories/shell/'>Shell</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://liluo.org/blog/2012/07/how-to-use-crontab/" data-via="liluoliluo" data-counturl="http://liluo.org/blog/2012/07/how-to-use-crontab/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2012/05/using-git-submodule-and-vim-pathogen-for-vim-configuraction-management/" title="Previous Post: 使用 Git submodule 和 vim-pathogen 管理、同步 Vim 插件及配置">&laquo; 使用 Git submodule 和 vim-pathogen 管理、同步 Vim 插件及配置</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2012/08/how-to-create-python-egg/" title="Next Post: 怎样制作一个 Python Egg">怎样制作一个 Python Egg &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2015/12/mysql-online-ddl/">非 DBA 也要勇敢的 Online(!) DDL</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/12/douban-linguist/">Douban Linguist</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/11/remote-tools/">Remote 之工具篇</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/03/we-all-love-pull-request/">我们都爱 Pull Request</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/08/how-to-create-python-egg/">怎样制作一个 Python Egg</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/liluo">@liluo</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'liluo',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+<section>
+  <h1>Latest Tweets</h1>
+  <ul id="tweets">
+    <li class="loading">Status updating...</li>
+  </ul>
+  <script type="text/javascript">
+    $.domReady(function(){
+      getTwitterFeed("liluoliluo", 4, false);
+    });
+  </script>
+  <script src="/javascripts/twitter.js" type="text/javascript"> </script>
+  
+    <a href="http://twitter.com/liluoliluo" class="twitter-follow-button" data-show-count="false">Follow @liluoliluo</a>
+  
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2016 - 落 -
+  <span>
+    <a href="http://www.miibeian.gov.cn" target="_blank">沪ICP备10005385号</a>
+  </span>
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+  <span>
+    <script src="http://s175.cnzz.com/stat.php?id=1892088&web_id=1892088&show=pic" language="JavaScript" charset="gb2312"></script>
+  </span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'liluo';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://liluo.org/blog/2012/07/how-to-use-crontab/';
+        var disqus_url = 'http://liluo.org/blog/2012/07/how-to-use-crontab/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

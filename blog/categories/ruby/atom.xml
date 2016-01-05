@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Ruby | 落]]></title>
+  <link href="http://liluo.org/blog/categories/ruby/atom.xml" rel="self"/>
+  <link href="http://liluo.org/"/>
+  <updated>2016-01-03T16:15:14+08:00</updated>
+  <id>http://liluo.org/</id>
+  <author>
+    <name><![CDATA[落]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[使用Python/Ruby/Bash Post 文件二进制流（stream）]]></title>
+    <link href="http://liluo.org/blog/2012/05/post-file-stream-with-linux-python-ruby-bash/"/>
+    <updated>2012-05-04T23:14:00+08:00</updated>
+    <id>http://liluo.org/blog/2012/05/post-file-stream-with-linux-python-ruby-bash</id>
+    <content type="html"><![CDATA[<p>之前经常使用Python的urllib, urllib2两个库写爬虫或者是向第三方接口post数据，很是清爽。今天有需求要把图片文件post到第三方接口，当我又祭出urllib+urllib2两大法宝时，结果很不意外的被洗刷刷了……</p>
+
+<p>被洗刷的感觉很不爽，需求是流氓，你弱它就强，所以一定要搞定它 XD</p>
+
+<p>各种搜罗和实践测试，最后得到了python\ruby\bash几个版本：</p>
+
+<!-- more -->
+
+
+<h2>Pyhton版1</h2>
+
+<p>使用第三方库poster, 安装：
+<code>bash
+easy_install poster
+</code></p>
+
+<p>代码:
+``` python
+from poster.encode import multipart_encode
+from poster.streaminghttp import register_openers
+import urllib2</p>
+
+<p>register_openers()</p>
+
+<p>datagen, headers = multipart_encode({</p>
+
+<pre><code>                 'image': open('/Users/luo/img1.jpg', 'rb')
+               })
+</code></pre>
+
+<p>request = urllib2.Request('http://localhost:4567/', datagen, headers)
+print urllib2.urlopen(request).read()
+```
+参考：<a href="http://atlee.ca/software/poster/index.html">http://atlee.ca/software/poster/index.html</a></p>
+
+<h2>Python版2</h2>
+
+<p>使用第三方库requests（同事 Tachikoma 推荐），安装：
+<code>bash
+easy_install requests
+或者
+pip install requests
+</code>
+代码：
+``` python
+import requests</p>
+
+<p>url = 'http://localhost:4567'
+files={'image': ('img1.jpg',open('/Users/luo/img1.jpg', 'rb'))}</p>
+
+<p>r = requests.post(url, files=files)
+```
+参考：<a href="http://docs.python-requests.org/en/latest/user/quickstart/">http://docs.python-requests.org/en/latest/user/quickstart/</a></p>
+
+<h2>Ruby版</h2>
+
+<p>使用gem包rest-client，安装：
+<code>bash
+gem install rest-client
+</code>
+代码：
+``` ruby
+require 'rest_client'
+RestClient.post('http://localhost:4567/',</p>
+
+<pre><code>            :image =&gt; File.new('/Users/luo/img1.jpg'))
+</code></pre>
+
+<p>```
+参考：<a href="https://github.com/adamwiggins/rest-client">https://github.com/adamwiggins/rest-client</a></p>
+
+<h2>Bash版</h2>
+
+<p>使用curl，安装：
+<code>bash
+不用讲了吧？
+</code>
+代码：
+<code>bash
+curl -F image=@/Users/luo/img1.jpg http://localhost:4567
+</code>
+参考：
+<code>bash
+man curl
+</code></p>
+
+<h3>测试的服务器端代码:</h3>
+
+<p><code>ruby
+require 'sinatra'
+post '/' do
+  data = params['image'][:tempfile].read
+  f = File.new('image1.jpg', 'w')
+  f.puts data
+  f.close
+  'ok'
+end
+</code></p>
+]]></content>
+  </entry>
+  
+</feed>

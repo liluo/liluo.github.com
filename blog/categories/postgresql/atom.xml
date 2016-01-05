@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: PostgreSQL | 落]]></title>
+  <link href="http://liluo.org/blog/categories/postgresql/atom.xml" rel="self"/>
+  <link href="http://liluo.org/"/>
+  <updated>2016-01-03T16:15:14+08:00</updated>
+  <id>http://liluo.org/</id>
+  <author>
+    <name><![CDATA[落]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Ubuntu 安装 PostgreSQL PgAdmin3]]></title>
+    <link href="http://liluo.org/blog/2010/07/ubuntu-install-postgresql-pgadmin3/"/>
+    <updated>2010-07-18T18:06:00+08:00</updated>
+    <id>http://liluo.org/blog/2010/07/ubuntu-install-postgresql-pgadmin3</id>
+    <content type="html"><![CDATA[<h3>安装 PostgreSQL</h3>
+
+<p>安装 PostgreSQL 和 命令行客户端 psql</p>
+
+<p><code>bash
+luo@luo-ubuntu:~$ sudo apt-get install postgresql-8.4 postgresql-client-8.4 postgresql-contrib-8.4
+</code></p>
+
+<h3>修改 PostgreSQL 默认用户 postgres 密码</h3>
+
+<p>PostgreSQL数据默认会创建一个postgres的用户作为数据库的管理员，密码是随机的，这里需要修改为指定的密码，这里设定为'password':</p>
+
+<p><code>bash
+luo@luo-ubuntu:~$ sudo -u postgres psql
+postgres=# ALTER USER postgres WITH PASSWORD 'password';
+postgres=# \q
+</code></p>
+
+<!-- more -->
+
+
+<h3>修改 Linux 系统 postgres 用户的密码</h3>
+
+<p>PostgreSQL 数据默认会创建一个 Linux 用户 postgres，我们要使 posgres 用户与数据库中 postgres 的密码保持一致:</p>
+
+<p>删除密码
+<code>bash
+luo@luo-ubuntu:~$ sudo passwd -d postgres
+</code></p>
+
+<p>创建密码
+<code>bash
+luo@luo-ubuntu:~$ sudo -u postgres passwd
+</code></p>
+
+<p>现在就可以用 postgres 账号通过 psql 或者 PgAdmin3 来操作数据库了。</p>
+
+<h3>修改PostgresSQL数据库配置实现远程访问</h3>
+
+<p>修改postgresql.conf的连接权限</p>
+
+<p><code>bash
+luo@luo-ubuntu:~$ sudo vi /etc/postgresql/8.4/main/postgresql.conf
+将 #listen_addresses = 'localhost' 修改为 listen_addresses = '*'
+将 #password_encryption = on       修改为 password_encryption = on
+</code></p>
+
+<p>修改pg_hba.conf的目的是设置用户操作数据服务器权限
+``` bash
+luo@luo-ubuntu:~$ sudo vi /etc/postgresql/8.4/main/pg_hba.conf
+追加以下2行</p>
+
+<h1>to allow your client visiting postgresql server</h1>
+
+<p>host all all 0.0.0.0 0.0.0.0 md5
+```</p>
+
+<p>重启PostgreSQL数据库的服务程序，使配置生效
+<code>bash
+luo@luo-ubuntu:~$ sudo /etc/init.d/postgresql-8.4 restart
+</code></p>
+
+<h3>安装 PgAdmin3</h3>
+
+<p><code>bash
+luo@luo-ubuntu:~$ sudo apt-get install pgadmin3
+</code></p>
+
+<h3>创建新用户和数据库</h3>
+
+<p><code>bash
+luo@luo-ubuntu:~$ psql -U postgres -h 127.0.0.1
+postgres=# create user 'liluo' with password 'liluo' nocreatedb;
+postgres=# create database 'new_database' with owner='liluo';
+</code></p>
+
+<p>或者</p>
+
+<p><code>bash
+luo@luo-ubuntu:~$ sudo -u postgres createuser -D -P liluo
+luo@luo-ubuntu:~$ sudo -u postgres createdb -O liluo new_database
+</code></p>
+
+<p><strong>EOF</strong></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Fedora 配置 Nginx + MySQL PostgreSQL Python PHP(FastCGI)]]></title>
+    <link href="http://liluo.org/blog/2010/06/linux-nginx-mysql-postgresql-python-php/"/>
+    <updated>2010-06-04T15:59:00+08:00</updated>
+    <id>http://liluo.org/blog/2010/06/linux-nginx-mysql-postgresql-python-php</id>
+    <content type="html"><![CDATA[<p>记录一下安装配置 Linux+Nginx+MySQL+PostgreSQL+Python+PHP 的过程。就是传说中的 LNMPPP～说白了就是 OS 使用 Linux, Web server 使用 Nginx, 支持Python和PHP，数据库支持PostgreSQL和MySQL。开始吧～</p>
+
+<!-- more -->
+
+
+<h4>Linux</h4>
+
+<p><code>
+Fedora 13(其他Linux发行版可能需要少许变动)
+</code></p>
+
+<h4>Nginx</h4>
+
+<p>安装
+<code>bash
+yum install nginx
+</code></p>
+
+<p>添加到系统自动运行
+<code>bash
+chkconfig --levels 235 nginx on
+</code></p>
+
+<p>启动
+<code>bash
+/etc/init.d/nginx start
+</code>
+Nginx 已经安装并启动，访问下 http://localhost/ 试一下吧</p>
+
+<h4>MySQL</h4>
+
+<p>安装
+<code>bash
+yum install mysql mysql-server
+</code></p>
+
+<p>添加系统服务并启动
+<code>bash
+chkconfig --levels 235 mysqld on
+</code></p>
+
+<p>启动
+<code>bash
+/etc/init.d/mysqld start
+</code></p>
+
+<p>检查是否支持网络连接
+<code>bash
+netstat -tap | grep mysql
+</code></p>
+
+<p>应该会看到这样的状态
+<code>bash
+netstat -tap | grep mysql
+tcp        0      0 *:mysql       *:*              LISTEN      1376/mysqld
+</code></p>
+
+<p>如果不是的话，需要修改/etc/my.cnf文件来启用网络连接支持, 将文件中 "#skip-networking" 的 "#" 去掉</p>
+
+<p>重启mysql
+<code>bash
+/etc/init.d/mysqld restart
+</code></p>
+
+<p>MySQL默认root用户的密码为空，需要给root设置密码(* 代表密码字符)
+<code>bash
+mysqladmin -u root password *****
+</code></p>
+
+<h4>PostgreSQL</h4>
+
+<p>安装
+<code>bash
+yum install postgresql postgresql-server
+</code></p>
+
+<p>然后需要初始化
+<code>bash
+Service postgresql initdb
+</code></p>
+
+<p>打开/var/lib/pgsql/data/pg_hba.conf文件，将Ipv4 local connections一栏中数据改为：
+<code>bash
+host    all         all         0.0.0.0           trust
+</code></p>
+
+<p>添加远程连接，将/var/lib/pgsql/data/postgresql.conf中的listen_sddress和port的注释删除，并改为：
+<code>bash
+listen_address = '*'
+port = 5432
+</code></p>
+
+<p>[可选]安装postgresql管理工具pgadmin3
+<code>bash
+yum install pgadmin3
+</code></p>
+
+<p>[可选]添加对python的支持
+<code>bash
+yum install python-psycopg2
+</code></p>
+
+<h4>Python</h4>
+
+<p>呃，其实 Fedora 自带的 Python 版本已经是比较新的了，只需要安装flup配置一下就ok了。</p>
+
+<p>安装flup
+<code>bash
+sudo easy_install flup
+</code></p>
+
+<p>更新 Nginx 配置文件 nginx.conf
+``` bash
+server {</p>
+
+<pre><code>listen 80;
+server_name localhost;
+
+# site_media - folder in uri for static files
+location /static  {
+    root /var/www/static;
+}
+
+location ~* ^.+\.(jpg|jpeg|gif|png|ico|css|zip|tgz|gz|rar|bz2|doc|xls|exe|pdf|ppt|txt|tar|mid|midi|wav|bmp|rtf|js|mov) {
+    access_log   off; 
+    expires      30d;
+}
+location / {
+    # host and port to fastcgi server
+    fastcgi_pass 127.0.0.1:8000;
+    fastcgi_param PATH_INFO      $fastcgi_script_name;
+    fastcgi_param REQUEST_METHOD $request_method;
+    fastcgi_param QUERY_STRING   $query_string;
+    fastcgi_param CONTENT_TYPE   $content_type;
+    fastcgi_param CONTENT_LENGTH $content_length;
+    fastcgi_pass_header          Authorization;
+    fastcgi_intercept_errors     off;
+}
+</code></pre>
+
+<p>   access_log /var/log/nginx/localhost.access_log main;
+   error_log  /var/log/nginx/localhost.error_log;
+}</p>
+
+<p>```</p>
+
+<h4>PHP</h4>
+
+<p>安装 PHP
+<code>bash
+yum install php-cli php-mysql php-pgsql php-gd php-imap php-ldap php-odbc php-pear php-xml php-xmlrpc php-eaccelerator php-magickwand php-magpierss php-mapserver php-mbstring php-mcrypt php-shout php-snmp php-soap php-tidy
+</code>
+在 /etc/php.ini 文件中追加'cgi.fix_pathinfo=1'</p>
+
+<p>更新 Nginx 配置文件 nginx.conf
+``` bash
+server {</p>
+
+<pre><code>listen       80;
+server_name  localhost;
+
+#charset koi8-r;
+#access_log  logs/host.access.log  main;
+
+location / {
+    root   /usr/share/nginx/html;
+    index  index.php index.html index.htm;
+}
+
+error_page  404              /404.html;
+location = /404.html {
+    root   /usr/share/nginx/html;
+}
+error_page 500 502 503 504  /50x.html;
+location = /50x.html {
+    root   /var/www;
+}
+
+location ~ \.php$ {
+    root           html;
+    fastcgi_pass   127.0.0.1:9000;
+    fastcgi_index  index.php;
+    fastcgi_param  SCRIPT_FILENAME  /var/www$fastcgi_script_name;
+    include        fastcgi_params;
+}
+# deny access to .htaccess files, if Apache's document root
+# concurs with nginx's one
+#
+location ~ /\.ht {
+    deny  all;
+}
+</code></pre>
+
+<p>}
+```</p>
+
+<p>以 FCGI 方式在9000端口启动 PHP
+<code>bash
+/usr/bin/spawn-fcgi -a 127.0.0.1 -p 9000 -u nginx -g nginx -f /usr/bin/php-cgi -P /var/run/fastcgi-php.pid
+</code>
+每次手动启动很麻烦，可以直接把上面内容追加到 /etc/rc.local 文件实现自动启动。</p>
+
+<p><strong>EOF</strong></p>
+]]></content>
+  </entry>
+  
+</feed>

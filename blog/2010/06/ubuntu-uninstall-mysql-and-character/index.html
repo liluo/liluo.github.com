@@ -1,0 +1,445 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Ubuntu 中 MySQL 卸载、重装以及编码问题 - 落</title>
+  <meta name="author" content="落">
+
+  
+  <meta name="description" content="最近Ubuntu中的MySQL出了点问题，网上找了N久也没找到答案，于是华丽的将它卸载重装。当然，如标题所写，这里还有涉及到编码问题。 卸载 当初安装时用的是: 1
+sudo apt-get install mysql-server mysql-client 于是相应的卸载应该是: 1
+sudo &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://liluo.org/blog/2010/06/ubuntu-uninstall-mysql-and-character/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="落" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">落</a></h1>
+  
+    <h2>落就是一道风景线</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:liluo.org" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+  <li><a href="/about/">About</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Ubuntu 中 MySQL 卸载、重装以及编码问题</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2010-06-30T17:49:00+08:00" pubdate data-updated="true">Jun 30<span>th</span>, 2010</time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>最近Ubuntu中的MySQL出了点问题，网上找了N久也没找到答案，于是华丽的将它卸载重装。当然，如标题所写，这里还有涉及到编码问题。</p>
+
+<!-- more -->
+
+
+<h3>卸载</h3>
+
+<p>当初安装时用的是:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>sudo apt-get install mysql-server mysql-client
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>于是相应的卸载应该是:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>sudo aptitude purge mysql-server mysql-client
+</span></code></pre></td></tr></table></div></figure>
+
+
+<blockquote><p> 其实我也有尝试用新立得软件管理器来卸载，再次安装的时候却被跳过设置root密码的步骤，应该是卸载的不完全吧？但是不管怎样我用上面的命令卸载之后重新安装正常。</p></blockquote>
+
+<h3>安装 MySQL</h3>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>sudo apt-get install mysql-server mysql-client
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>是的，依然是原来安装的方式，需要输入root的密码并确认一次。但是当我安装完成之后发现无法使用sudo /etc/init.d/mysql restart来重启以及启动、停止，出现以下提示：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>luo@luo-ubuntu:~<span class="nv">$ </span>sudo /etc/init.d/mysql restart
+</span><span class='line'>Rather than invoking init scripts through /etc/init.d, use the service<span class="o">(</span>8<span class="o">)</span>
+</span><span class='line'>utility, e.g. service mysql restart
+</span><span class='line'>Since the script you are attempting to invoke has been converted to an
+</span><span class='line'>Upstart job, you may also use the restart<span class="o">(</span>8<span class="o">)</span> utility, e.g. restart mysql
+</span><span class='line'>mysql start/running, process 3942
+</span><span class='line'>luo@luo-ubuntu:~<span class="nv">$ </span>sudo /etc/init.d/mysql restartRather than invoking init scripts through /etc/init.d, use the service<span class="o">(</span>8<span class="o">)</span>utility, e.g. service mysql restart
+</span><span class='line'>Since the script you are attempting to invoke has been converted to anUpstart job, you may also use the restart<span class="o">(</span>8<span class="o">)</span> utility, e.g. restart mysqlmysql start/running, process 3942
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>于是参照提示使用以下命令行来重启、启动、停止Mysql：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>sudo restart mysql
+</span><span class='line'>sudo start mysql
+</span><span class='line'>sudo stop mysql
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>编码</h3>
+
+<p>网上有流传说Mysql的默认编码是latin1，我之前的Mysql也是，但是当我重装完成之后进入Mysql使用：show variables like &#8220;character_set%&#8221;; ，結果如下：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>mysql&gt; show variables like <span class="s1">&#39;character%&#39;</span>;
+</span><span class='line'>+--------------------------+----------------------------+
+</span><span class='line'>| Variable_name | Value |
+</span><span class='line'>+--------------------------+----------------------------+
+</span><span class='line'>| character_set_client | utf8 |
+</span><span class='line'>| character_set_connection | utf8 |
+</span><span class='line'>| character_set_database | utf8 |
+</span><span class='line'>| character_set_filesystem | binary |
+</span><span class='line'>| character_set_results | utf8 |
+</span><span class='line'>| character_set_server | utf8 |
+</span><span class='line'>| character_set_system | utf8 |
+</span><span class='line'>| character_sets_dir | /usr/share/mysql/charsets/ |
+</span><span class='line'>+--------------------------+----------------------------+
+</span><span class='line'>8 rows in <span class="nb">set</span> <span class="o">(</span>0.00 sec<span class="o">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>这也是新版本带来的吗？我不能确定，所以我还是把修改Mysql编码的方法记录一下。</p>
+
+<p>首先，进入Mysql使用 show variables like &#8216;character%&#8217;;查看，如果执行编码显示:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>+--------------------------+----------------------------+
+</span><span class='line'>| Variable_name | Value |
+</span><span class='line'>+--------------------------+----------------------------+
+</span><span class='line'>| character_set_client | latin1 |
+</span><span class='line'>| character_set_connection | latin1 |
+</span><span class='line'>| character_set_database | latin1 |
+</span><span class='line'>| character_set_filesystem | binary |
+</span><span class='line'>| character_set_results | latin1 |
+</span><span class='line'>| character_set_server | latin1 |
+</span><span class='line'>| character_set_system | utf8 |
+</span><span class='line'>| character_sets_dir | /usr/share/mysql/charsets/ |
+</span><span class='line'>+--------------------------+----------------------------+
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>说明需要修改编码，修改/etc/mysql/my.cnf文件:</p>
+
+<p>找到客户端配置[client] 在下面添加</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>default-character-set<span class="o">=</span>utf8 默认字符集为utf8
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>在找到[mysqld] 添加</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>default-character-set<span class="o">=</span>utf8
+</span><span class='line'><span class="nv">init_connect</span><span class="o">=</span><span class="s1">&#39;SET NAMES utf8&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>修改好后，重新启动mysql 即可，查询一下show variables like &#8216;character%&#8217;。</p>
+
+<p>如果不出意外，已经Ok。</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">落</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2010-06-30T17:49:00+08:00" pubdate data-updated="true">Jun 30<span>th</span>, 2010</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/mysql/'>MySQL</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://liluo.org/blog/2010/06/ubuntu-uninstall-mysql-and-character/" data-via="liluoliluo" data-counturl="http://liluo.org/blog/2010/06/ubuntu-uninstall-mysql-and-character/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2010/06/python-urllib-urllib2/" title="Previous Post: Python 爬虫基础">&laquo; Python 爬虫基础</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2010/07/ubuntu-install-postgresql-pgadmin3/" title="Next Post: Ubuntu 安装 PostgreSQL PgAdmin3">Ubuntu 安装 PostgreSQL PgAdmin3 &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2015/12/mysql-online-ddl/">非 DBA 也要勇敢的 Online(!) DDL</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/12/douban-linguist/">Douban Linguist</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/11/remote-tools/">Remote 之工具篇</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/03/we-all-love-pull-request/">我们都爱 Pull Request</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/08/how-to-create-python-egg/">怎样制作一个 Python Egg</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/liluo">@liluo</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'liluo',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+<section>
+  <h1>Latest Tweets</h1>
+  <ul id="tweets">
+    <li class="loading">Status updating...</li>
+  </ul>
+  <script type="text/javascript">
+    $.domReady(function(){
+      getTwitterFeed("liluoliluo", 4, false);
+    });
+  </script>
+  <script src="/javascripts/twitter.js" type="text/javascript"> </script>
+  
+    <a href="http://twitter.com/liluoliluo" class="twitter-follow-button" data-show-count="false">Follow @liluoliluo</a>
+  
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2016 - 落 -
+  <span>
+    <a href="http://www.miibeian.gov.cn" target="_blank">沪ICP备10005385号</a>
+  </span>
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+  <span>
+    <script src="http://s175.cnzz.com/stat.php?id=1892088&web_id=1892088&show=pic" language="JavaScript" charset="gb2312"></script>
+  </span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'liluo';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://liluo.org/blog/2010/06/ubuntu-uninstall-mysql-and-character/';
+        var disqus_url = 'http://liluo.org/blog/2010/06/ubuntu-uninstall-mysql-and-character/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

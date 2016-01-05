@@ -1,0 +1,666 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>怎样制作一个 Python Egg - 落</title>
+  <meta name="author" content="落">
+
+  
+  <meta name="description" content="前段时间在玩 OAuth2，尝试了很多个 Python 封装的 OAuth2 第三方库，感觉都不是很对自己胃口(最无语的是那个叫作 oauth2 的库，居然是 OAuth 1.0 的实现？？！！)，于是自己写了一个叫作 py-oauth2 的“库”。之所以取这个名字是因为之前用过一个叫 py- &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://liluo.org/blog/2012/08/how-to-create-python-egg/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="落" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">落</a></h1>
+  
+    <h2>落就是一道风景线</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:liluo.org" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+  <li><a href="/about/">About</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">怎样制作一个 Python Egg</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-08-30T20:58:00+08:00" pubdate data-updated="true">Aug 30<span>th</span>, 2012</time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p><img src="http://i1170.photobucket.com/albums/r539/liluoliluo/7f3c8c9e.jpg" title="Python Egg" alt="Python Egg" /></p>
+
+<p>前段时间在玩 OAuth2，尝试了很多个 Python 封装的 OAuth2 第三方库，感觉都不是很对自己胃口(最无语的是那个叫作 oauth2 的库，居然是 OAuth 1.0 的实现？？！！)，于是自己写了一个叫作 <a href="http://pypi.python.org/pypi/py-oauth2/">py-oauth2</a> 的“库”。之所以取这个名字是因为之前用过一个叫 py-trello 的库，以为叫 py-xxx 会很洋气，现在想想真是土死了…</p>
+
+<p>制作打包一个 Python Egg 并部署整个过程还蛮有意思的，下面小教程(这里以制作一个叫作 bee 的 Egg 为例)～</p>
+
+<!-- more -->
+
+
+<h2>制作</h2>
+
+<p>先创建一个项目文件夹:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>mkdir bee-egg <span class="c"># 这个名字可以随便取</span>
+</span><span class='line'><span class="nv">$ </span><span class="nb">cd </span>bee-egg
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>在里边建一个叫 bee 的文件夹(逻辑比较简单的话可以直接建一个叫作 bee.py 的文件)，放业务逻辑代码:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>mkdir bee
+</span><span class='line'>touch bee/__init__.py
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>其中 bee/<strong>init</strong>.py 写几行代码:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="c"># -*- coding: utf-8 -*-</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">def</span> <span class="nf">hoot</span><span class="p">():</span>
+</span><span class='line'>    <span class="k">return</span> <span class="s">&#39;hum hum&#39;</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+</span><span class='line'>    <span class="k">return</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>在 bee-egg 目录中创建 Egg 的配置文件 setup.py :</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="c">#!/usr/bin/env python</span>
+</span><span class='line'>
+</span><span class='line'><span class="kn">from</span> <span class="nn">setuptools</span> <span class="kn">import</span> <span class="n">setup</span><span class="p">,</span> <span class="n">find_packages</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">setup</span><span class="p">(</span>
+</span><span class='line'>    <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;bee&#39;</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">version</span> <span class="o">=</span> <span class="s">&#39;0.0.1&#39;</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">keywords</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;bee&#39;</span><span class="p">,</span> <span class="s">&#39;egg&#39;</span><span class="p">),</span>
+</span><span class='line'>    <span class="n">description</span> <span class="o">=</span> <span class="s">&#39;a simple egg&#39;</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">license</span> <span class="o">=</span> <span class="s">&#39;MIT License&#39;</span><span class="p">,</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">url</span> <span class="o">=</span> <span class="s">&#39;http://liluo.org&#39;</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">author</span> <span class="o">=</span> <span class="s">&#39;liluo&#39;</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">author_email</span> <span class="o">=</span> <span class="s">&#39;i@liluo.org&#39;</span><span class="p">,</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">packages</span> <span class="o">=</span> <span class="n">find_packages</span><span class="p">(),</span>
+</span><span class='line'>    <span class="n">include_package_data</span> <span class="o">=</span> <span class="bp">True</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">platforms</span> <span class="o">=</span> <span class="s">&#39;any&#39;</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">install_requires</span> <span class="o">=</span> <span class="p">[],</span>
+</span><span class='line'><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><em>*setup 中完整的参数及说明可以看</em> <a href="http://docs.python.org/distutils/setupscript.html#additional-meta-data">http://docs.python.org/distutils/setupscript.html#additional-meta-data</a></p>
+
+<p>当前目录文件结构如下：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>bee-egg/
+</span><span class='line'>        bee/
+</span><span class='line'>           __init__.py
+</span><span class='line'>        setup.py
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>打包</h2>
+
+<p>打包是最重要却又最简单的一步，执行:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>python setup.py xxxx
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>即可。比较主流的2种打包格式：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="c"># 以下所有生成文件将在当前路径下 dist 目录中</span>
+</span><span class='line'>python setup.py bdist_egg <span class="c"># 生成类似 bee-0.0.1-py2.7.egg，支持 easy_install </span>
+</span><span class='line'>python setup.py sdist     <span class="c"># 生成类似 bee-0.0.1.tar.gz，支持 pip </span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>当然还有其他非主流格式或者其他选项，可以通过下面这个命令查看：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>python setup.py --help-commands
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>部署到 PyPI</h2>
+
+<h4>注册 Egg</h4>
+
+<p>可以通过 SSH 或者 <a href="http://pypi.python.org/pypi?%3Aaction=submit_form">web form</a> ，SSH 步骤：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>python setup.py register
+</span><span class='line'>running register
+</span><span class='line'>running egg_info
+</span><span class='line'>writing bee.egg-info/PKG-INFO
+</span><span class='line'>writing top-level names to bee.egg-info/top_level.txt
+</span><span class='line'>writing dependency_links to bee.egg-info/dependency_links.txt
+</span><span class='line'>reading manifest file <span class="s1">&#39;bee.egg-info/SOURCES.txt&#39;</span>
+</span><span class='line'>writing manifest file <span class="s1">&#39;bee.egg-info/SOURCES.txt&#39;</span>
+</span><span class='line'>running check
+</span><span class='line'>We need to know who you are, so please choose either:
+</span><span class='line'> 1. use your existing login,
+</span><span class='line'> 2. register as a new user,
+</span><span class='line'> 3. have the server generate a new password <span class="k">for </span>you <span class="o">(</span>and email it to you<span class="o">)</span>, or
+</span><span class='line'> 4. quit
+</span><span class='line'>Your selection <span class="o">[</span>default 1<span class="o">]</span>:
+</span><span class='line'>
+</span><span class='line'>Username: liluo
+</span><span class='line'>Password:
+</span><span class='line'>Registering bee to http://pypi.python.org/pypi
+</span><span class='line'>Server response <span class="o">(</span>200<span class="o">)</span>: OK
+</span><span class='line'>I can store your PyPI login so future submissions will be faster.
+</span><span class='line'><span class="o">(</span>the login will be stored in /Users/luo/.pypirc<span class="o">)</span>
+</span><span class='line'>Save your login <span class="o">(</span>y/N<span class="o">)</span>?y
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><em>*关于 register 更详细的内容可以看</em> <a href="http://docs.python.org/distutils/packageindex.html">http://docs.python.org/distutils/packageindex.html</a></p>
+
+<h4>上传到 PyPI</h4>
+
+<p>上传文件也是有 SSH 和 web form 2种方法。</p>
+
+<p>web form: 在浏览器登陆到 PyPI 点击 Your packages 中 Egg 的项目，然后选择某个版本的 files 即可看到上传界面。</p>
+
+<p>SSH:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>python setup.py sdist bdist_egg upload
+</span><span class='line'><span class="c"># 这里上传的是 .tar.gz 压缩包和 .egg 文件</span>
+</span><span class='line'><span class="c"># 屏幕上大片信息输出，最后会看到</span>
+</span><span class='line'>running upload
+</span><span class='line'>Submitting dist/bee-0.0.1.tar.gz to http://pypi.python.org/pypi
+</span><span class='line'>Server response <span class="o">(</span>200<span class="o">)</span>: OK
+</span><span class='line'>Submitting dist/bee-0.0.1-py2.7.egg to http://pypi.python.org/pypi
+</span><span class='line'>Server response <span class="o">(</span>200<span class="o">)</span>: OK
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>安装测试</h4>
+
+<p>先用 pip 安装：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>pip install bee
+</span><span class='line'>Downloading/unpacking bee
+</span><span class='line'>  Downloading bee-0.0.1.tar.gz
+</span><span class='line'>  Running setup.py egg_info <span class="k">for </span>package bee
+</span><span class='line'>
+</span><span class='line'>Installing collected packages: bee
+</span><span class='line'>  Running setup.py install <span class="k">for </span>bee
+</span><span class='line'>
+</span><span class='line'>Successfully installed bee
+</span><span class='line'>Cleaning up...
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>测试：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>python
+</span><span class='line'>&gt;&gt;&gt; import bee
+</span><span class='line'>&gt;&gt;&gt; dir<span class="o">(</span>bee<span class="o">)</span>
+</span><span class='line'><span class="o">[</span><span class="s1">&#39;__builtins__&#39;</span>, <span class="s1">&#39;__doc__&#39;</span>, <span class="s1">&#39;__file__&#39;</span>, <span class="s1">&#39;__name__&#39;</span>, <span class="s1">&#39;__package__&#39;</span>, <span class="s1">&#39;__path__&#39;</span>, <span class="s1">&#39;add&#39;</span>, <span class="s1">&#39;hoot&#39;</span><span class="o">]</span>
+</span><span class='line'>&gt;&gt;&gt; bee.add<span class="o">(</span>1,3<span class="o">)</span>
+</span><span class='line'>4
+</span><span class='line'>&gt;&gt;&gt; from bee import hoot
+</span><span class='line'>&gt;&gt;&gt; hoot<span class="o">()</span>
+</span><span class='line'><span class="s1">&#39;hum hum&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Yeah！现在世界人民都可以用 [bee]<a href="http://pypi.python.org/pypi/bee/">http://pypi.python.org/pypi/bee/</a> 这个 Python Egg 了～</p>
+
+<p>卸载掉用 easy_install 试下:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>pip uninstall bee
+</span><span class='line'>Uninstalling bee:
+</span><span class='line'>  /Library/Python/2.7/site-packages/bee
+</span><span class='line'>  /Library/Python/2.7/site-packages/bee-0.0.1-py2.7.egg-info
+</span><span class='line'>Proceed <span class="o">(</span>y/n<span class="o">)</span>? y
+</span><span class='line'>  Successfully uninstalled bee
+</span><span class='line'><span class="nv">$ </span>easy_install bee
+</span><span class='line'>Searching <span class="k">for </span>bee
+</span><span class='line'>Reading http://pypi.python.org/simple/bee/
+</span><span class='line'>Reading http://liluo.org
+</span><span class='line'>Best match: bee 0.0.1
+</span><span class='line'>Downloading http://pypi.python.org/packages/2.7/b/bee/bee-0.0.1-py2.7.egg#md5<span class="o">=</span>6b5a719f1ca42367fb05d1e3eb45fbe5
+</span><span class='line'>Processing bee-0.0.1-py2.7.egg
+</span><span class='line'>Moving bee-0.0.1-py2.7.egg to /Library/Python/2.7/site-packages
+</span><span class='line'>Adding bee 0.0.1 to easy-install.pth file
+</span><span class='line'>
+</span><span class='line'>Installed /Library/Python/2.7/site-packages/bee-0.0.1-py2.7.egg
+</span><span class='line'>Processing dependencies <span class="k">for </span>bee
+</span><span class='line'>Finished processing dependencies <span class="k">for </span>bee
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>可以再重做一下上面的测试，验证一下。</p>
+
+<p><em>*关于 upload 更详细的内容可以看</em> <a href="http://docs.python.org/distutils/uploading.html">http://docs.python.org/distutils/uploading.html</a></p>
+
+<h2>Tips</h2>
+
+<h4>pip install xxxx 时默认只会找对应的压缩包文件</h4>
+
+<p>当时我用 easy_install 安装没问题，但是 pip 每次都说找不到资源。我盯着 <a href="http://www.douban.com/people/hongqn/">@hongqn</a> 在 PyPI 上的 CaoE 足足2分钟才反应过来，原来它是需要一个压缩包格式的文件。</p>
+
+<h4>setup.py 中调用当前目录的文件一定要加 MANIFEST.in 并将调用文件 include 进来</h4>
+
+<p>使用 python setup.py sdist 打包时，如果 setup.py 调用了当前目录中的文件(如README.rst):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="n">long_description</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s">&#39;README.rst&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>一定要在增加 MANIFEST.in 文件并将调用文件 include 进来，否则将导致用户在 pip install 时报文件找不到的错误，示例:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>cat MANIFEST.in
+</span><span class='line'>include README.rst
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>更详情的可以看 <a href="http://docs.python.org/distutils/sourcedist.html#specifying-the-files-to-distribute">http://docs.python.org/distutils/sourcedist.html#specifying-the-files-to-distribute</a></p>
+
+<h4>偶尔去看一下自己的 Egg 在 PyPI 上的下载数也挺欢乐的</h4>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>Version: 0.0.3
+</span><span class='line'>py-oauth2-0.0.3.tar.gz<span class="o">(</span>251<span class="o">)</span>
+</span><span class='line'>py_oauth2-0.0.3-py2.7.egg<span class="o">(</span>218<span class="o">)</span>
+</span><span class='line'>
+</span><span class='line'>Version: 0.0.2
+</span><span class='line'>py-oauth2-0.0.2.tar.gz<span class="o">(</span>376<span class="o">)</span>
+</span><span class='line'>py_oauth2-0.0.2-py2.6.egg<span class="o">(</span>435<span class="o">)</span>
+</span><span class='line'>py_oauth2-0.0.2-py2.7.egg<span class="o">(</span>304<span class="o">)</span>
+</span><span class='line'>
+</span><span class='line'>Version: 0.0.1
+</span><span class='line'>py_oauth2-0.0.1-py2.6.egg<span class="o">(</span>478<span class="o">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><strong>END</strong></p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">落</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2012-08-30T20:58:00+08:00" pubdate data-updated="true">Aug 30<span>th</span>, 2012</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/egg/'>Egg</a>, <a class='category' href='/blog/categories/python/'>Python</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://liluo.org/blog/2012/08/how-to-create-python-egg/" data-via="liluoliluo" data-counturl="http://liluo.org/blog/2012/08/how-to-create-python-egg/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2012/07/how-to-use-crontab/" title="Previous Post: Crontab 使用入门">&laquo; Crontab 使用入门</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2013/03/we-all-love-pull-request/" title="Next Post: 我们都爱 Pull Request">我们都爱 Pull Request &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2015/12/mysql-online-ddl/">非 DBA 也要勇敢的 Online(!) DDL</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/12/douban-linguist/">Douban Linguist</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/11/remote-tools/">Remote 之工具篇</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/03/we-all-love-pull-request/">我们都爱 Pull Request</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/08/how-to-create-python-egg/">怎样制作一个 Python Egg</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/liluo">@liluo</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'liluo',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+<section>
+  <h1>Latest Tweets</h1>
+  <ul id="tweets">
+    <li class="loading">Status updating...</li>
+  </ul>
+  <script type="text/javascript">
+    $.domReady(function(){
+      getTwitterFeed("liluoliluo", 4, false);
+    });
+  </script>
+  <script src="/javascripts/twitter.js" type="text/javascript"> </script>
+  
+    <a href="http://twitter.com/liluoliluo" class="twitter-follow-button" data-show-count="false">Follow @liluoliluo</a>
+  
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2016 - 落 -
+  <span>
+    <a href="http://www.miibeian.gov.cn" target="_blank">沪ICP备10005385号</a>
+  </span>
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+  <span>
+    <script src="http://s175.cnzz.com/stat.php?id=1892088&web_id=1892088&show=pic" language="JavaScript" charset="gb2312"></script>
+  </span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'liluo';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://liluo.org/blog/2012/08/how-to-create-python-egg/';
+        var disqus_url = 'http://liluo.org/blog/2012/08/how-to-create-python-egg/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,487 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Python 使用 PIL 给图片添加水印 - 落</title>
+  <meta name="author" content="落">
+
+  
+  <meta name="description" content="前几天在做一个给指定相册添加水印的功能，使用的是PIL(Python Image Library)。
+先看一下网上，找到这篇：Watermark with PIL (Python recipe) 于是，处理水印的核心代码就差不多有了～ 当然，问题也接着来了，首先就是拿到的图片文件和水印文件。 &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://liluo.org/blog/2011/08/python-add-watermark-with-pil/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="落" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">落</a></h1>
+  
+    <h2>落就是一道风景线</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:liluo.org" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+  <li><a href="/about/">About</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Python 使用 PIL 给图片添加水印</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2011-08-09T22:46:00+08:00" pubdate data-updated="true">Aug 9<span>th</span>, 2011</time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>前几天在做一个给指定相册添加水印的功能，使用的是PIL(Python Image Library)。
+先看一下网上，找到这篇：<a href="http://code.activestate.com/recipes/362879-watermark-with-pil/">Watermark with PIL (Python recipe)</a> 于是，处理水印的核心代码就差不多有了～</p>
+
+<p>当然，问题也接着来了，首先就是拿到的图片文件和水印文件。我这边得到上传图片文件基本上会是文件二进制数据流或者由Flash post过来的application/octet-stream类型的二进制数据流，并不能像参考中的代码使用指定路径拿到文件，所以数据流进行处理：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="kn">import</span> <span class="nn">Image</span><span class="o">,</span> <span class="nn">ImageEnhance</span>
+</span><span class='line'><span class="kn">from</span> <span class="nn">cStringIO</span> <span class="kn">import</span> <span class="n">StringIO</span>
+</span><span class='line'><span class="n">img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">StringIO</span><span class="p">(</span><span class="n">img_data</span><span class="p">))</span> <span class="c"># img_data 是post过来的数据流</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>这样就可以拿到一个Image对象了。再使用类似参考代码对它进行水印处理。</p>
+
+<!-- more -->
+
+
+<p>然后在上传图片的时候，依然使用原来的机制，这里再把加过水印的数据流丢出去：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="n">new_img</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
+</span><span class='line'><span class="n">img</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">new_img</span><span class="p">,</span> <span class="n">img_format</span><span class="p">,</span> <span class="n">quality</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span> <span class="c"># quality来指定生成图片的质量，范围是0～100</span>
+</span><span class='line'><span class="n">reutrn</span> <span class="n">new_img</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>代码上线不久之后，就有同事反映说有png图片上传之后会原图会变掉，我拿png去上传之后效果正常，于是把他那张图拿过来测试，果然报错。后来发现他那张png使用的模式是&#8217;RGBA&#8217;, 而我们一般情况下的png或者gif模式是&#8217;P&#8217;，会不会是因为图片模式问题呢？测试一下：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="n">img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s">&#39;/Users/luo/p.png&#39;</span><span class="p">)</span>
+</span><span class='line'><span class="n">img</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>在这个时候图片就已经被奇怪的变化了 ＃＃
+后来多次尝试发现在 img.save() 时指定format=&#8217;PNG&#8217;时效果正常，于是另加上了mode判断：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="k">if</span> <span class="n">img</span><span class="o">.</span><span class="n">mode</span> <span class="o">!=</span> <span class="s">&#39;RGBA&#39;</span><span class="p">:</span>
+</span><span class='line'>    <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">convert</span><span class="p">(</span><span class="s">&#39;RGBA&#39;</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">img_format</span> <span class="o">=</span> <span class="s">&#39;JPEG&#39;</span>
+</span><span class='line'><span class="k">else</span><span class="p">:</span>
+</span><span class='line'>    <span class="n">img_format</span> <span class="o">=</span> <span class="s">&#39;PNG&#39;</span>
+</span><span class='line'><span class="n">img</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">new_img</span><span class="p">,</span> <span class="n">img_format</span><span class="p">,</span> <span class="n">quality</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>本地环境测试ok，然后代码提交～
+完整代码：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+<span class='line-number'>57</span>
+<span class='line-number'>58</span>
+<span class='line-number'>59</span>
+<span class='line-number'>60</span>
+<span class='line-number'>61</span>
+<span class='line-number'>62</span>
+<span class='line-number'>63</span>
+<span class='line-number'>64</span>
+<span class='line-number'>65</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="kn">from</span> <span class="nn">cStringIO</span> <span class="kn">import</span> <span class="n">StringIO</span>
+</span><span class='line'><span class="kn">import</span> <span class="nn">Image</span><span class="o">,</span> <span class="nn">ImageEnhance</span>
+</span><span class='line'><span class="n">LEFT_TOP</span>     <span class="o">=</span> <span class="s">&#39;lt&#39;</span>
+</span><span class='line'><span class="n">LEFT_BOTTOM</span>  <span class="o">=</span> <span class="s">&#39;lb&#39;</span>
+</span><span class='line'><span class="n">RIGHT_TOP</span>    <span class="o">=</span> <span class="s">&#39;rt&#39;</span>
+</span><span class='line'><span class="n">RIGHT_BOTTOM</span> <span class="o">=</span> <span class="s">&#39;rb&#39;</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">WIDTH_GRID</span> <span class="o">=</span> <span class="mf">30.0</span>
+</span><span class='line'><span class="n">HIGHT_GRID</span> <span class="o">=</span> <span class="mf">30.0</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">def</span> <span class="nf">mark_layout</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">mark</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="n">RIGHT_BOTTOM</span><span class="p">):</span>
+</span><span class='line'>    <span class="n">im_width</span><span class="p">,</span> <span class="n">im_hight</span>     <span class="o">=</span> <span class="n">im</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">im</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+</span><span class='line'>    <span class="n">mark_width</span><span class="p">,</span> <span class="n">mark_hight</span> <span class="o">=</span> <span class="n">mark</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mark</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">coordinates</span> <span class="o">=</span> <span class="p">{</span> <span class="n">LEFT_TOP</span><span class="p">:</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">im_width</span><span class="o">/</span><span class="n">WIDTH_GRID</span><span class="p">),</span><span class="nb">int</span><span class="p">(</span><span class="n">im_hight</span><span class="o">/</span><span class="n">HIGHT_GRID</span><span class="p">)),</span>
+</span><span class='line'>                    <span class="n">LEFT_BOTTOM</span><span class="p">:</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">im_width</span><span class="o">/</span><span class="n">WIDTH_GRID</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">im_hight</span> <span class="o">-</span> <span class="n">mark_hight</span> <span class="o">-</span> <span class="n">im_hight</span><span class="o">/</span><span class="n">HIGHT_GRID</span><span class="p">)),</span>
+</span><span class='line'>                    <span class="n">RIGHT_TOP</span><span class="p">:</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">im_width</span> <span class="o">-</span> <span class="n">mark_width</span> <span class="o">-</span> <span class="n">im_width</span><span class="o">/</span><span class="n">WIDTH_GRID</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">im_hight</span><span class="o">/</span><span class="n">HIGHT_GRID</span><span class="p">)),</span>
+</span><span class='line'>                    <span class="n">RIGHT_BOTTOM</span><span class="p">:</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">im_width</span> <span class="o">-</span> <span class="n">mark_width</span> <span class="o">-</span> <span class="n">im_width</span><span class="o">/</span><span class="n">WIDTH_GRID</span><span class="p">),</span> \
+</span><span class='line'>                    <span class="nb">int</span><span class="p">(</span><span class="n">im_hight</span> <span class="o">-</span> <span class="n">mark_hight</span> <span class="o">-</span> <span class="n">im_hight</span><span class="o">/</span><span class="n">HIGHT_GRID</span><span class="p">)),</span>
+</span><span class='line'>                  <span class="p">}</span>
+</span><span class='line'>    <span class="k">return</span> <span class="n">coordinates</span><span class="p">[</span><span class="n">layout</span><span class="p">]</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">def</span> <span class="nf">reduce_opacity</span><span class="p">(</span><span class="n">mark</span><span class="p">,</span> <span class="n">opacity</span><span class="p">):</span>
+</span><span class='line'>    <span class="k">assert</span> <span class="n">opacity</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">opacity</span> <span class="o">&lt;=</span> <span class="mi">1</span>
+</span><span class='line'>    <span class="n">mark</span>  <span class="o">=</span> <span class="n">mark</span><span class="o">.</span><span class="n">convert</span><span class="p">(</span><span class="s">&#39;RGBA&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">mark</span><span class="o">.</span><span class="n">mode</span> <span class="o">!=</span> <span class="s">&#39;RGBA&#39;</span> <span class="k">else</span> <span class="n">mark</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+</span><span class='line'>    <span class="n">alpha</span> <span class="o">=</span> <span class="n">mark</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">3</span><span class="p">]</span>
+</span><span class='line'>    <span class="n">alpha</span> <span class="o">=</span> <span class="n">ImageEnhance</span><span class="o">.</span><span class="n">Brightness</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span><span class="o">.</span><span class="n">enhance</span><span class="p">(</span><span class="n">opacity</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">mark</span><span class="o">.</span><span class="n">putalpha</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">return</span> <span class="n">mark</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">def</span> <span class="nf">water_mark</span><span class="p">(</span><span class="n">img_data</span><span class="p">,</span> <span class="n">opacity</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+</span><span class='line'>    <span class="n">img</span>  <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">StringIO</span><span class="p">(</span><span class="n">img_data</span><span class="p">))</span>
+</span><span class='line'>    <span class="n">mark</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s">&#39;/mark/path&#39;</span><span class="p">)</span> <span class="c"># 水印文件可以使用指定路径</span>
+</span><span class='line'>    <span class="c">#mark = fs.get(mark_url)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="ow">not</span> <span class="n">mark</span><span class="p">:</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">img_data</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">mark</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">StringIO</span><span class="p">(</span><span class="n">mark</span><span class="p">))</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="n">opacity</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+</span><span class='line'>        <span class="n">mark</span> <span class="o">=</span> <span class="n">reduce_opacity</span><span class="p">(</span><span class="n">mark</span><span class="p">,</span> <span class="n">opacity</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="n">img</span><span class="o">.</span><span class="n">mode</span> <span class="o">!=</span> <span class="s">&#39;RGBA&#39;</span><span class="p">:</span>
+</span><span class='line'>        <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">convert</span><span class="p">(</span><span class="s">&#39;RGBA&#39;</span><span class="p">)</span>
+</span><span class='line'>        <span class="n">img_format</span> <span class="o">=</span> <span class="s">&#39;JPEG&#39;</span>
+</span><span class='line'>    <span class="k">else</span><span class="p">:</span>
+</span><span class='line'>        <span class="n">img_format</span> <span class="o">=</span> <span class="s">&#39;PNG&#39;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c"># 指定上传图片最大宽度580和高宽600，如超过进行resize</span>
+</span><span class='line'>    <span class="k">if</span> <span class="n">img</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">580</span><span class="p">:</span>
+</span><span class='line'>        <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">resize</span><span class="p">((</span><span class="mi">580</span><span class="p">,</span> <span class="n">img</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="mf">580.0</span><span class="p">)),</span> <span class="n">resample</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="n">img</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">600</span><span class="p">:</span>
+</span><span class='line'>        <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">resize</span><span class="p">((</span><span class="n">img</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="mf">600.0</span><span class="p">),</span><span class="mi">600</span><span class="p">),</span> <span class="n">resample</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">layer</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="s">&#39;RGBA&#39;</span><span class="p">,</span> <span class="n">img</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">))</span>
+</span><span class='line'>    <span class="n">layer</span><span class="o">.</span><span class="n">paste</span><span class="p">(</span><span class="n">mark</span><span class="p">,</span> <span class="n">mark_layout</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">mark</span><span class="p">,</span> <span class="n">layout</span><span class="p">))</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">composite</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">img</span><span class="p">,</span> <span class="n">layer</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">new_img</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
+</span><span class='line'>    <span class="n">img</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">new_img</span><span class="p">,</span> <span class="n">img_format</span><span class="p">,</span> <span class="n">quality</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">return</span> <span class="n">new_img</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">落</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2011-08-09T22:46:00+08:00" pubdate data-updated="true">Aug 9<span>th</span>, 2011</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/douban/'>Douban</a>, <a class='category' href='/blog/categories/python/'>Python</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://liluo.org/blog/2011/08/python-add-watermark-with-pil/" data-via="liluoliluo" data-counturl="http://liluo.org/blog/2011/08/python-add-watermark-with-pil/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2011/06/bash-shortcut-key/" title="Previous Post: bash ctrl/alt 组合快捷键">&laquo; bash ctrl/alt 组合快捷键</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2012/03/about-unittest/" title="Next Post: 单元测试的那些事">单元测试的那些事 &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2015/12/mysql-online-ddl/">非 DBA 也要勇敢的 Online(!) DDL</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/12/douban-linguist/">Douban Linguist</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/11/remote-tools/">Remote 之工具篇</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/03/we-all-love-pull-request/">我们都爱 Pull Request</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/08/how-to-create-python-egg/">怎样制作一个 Python Egg</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/liluo">@liluo</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'liluo',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+<section>
+  <h1>Latest Tweets</h1>
+  <ul id="tweets">
+    <li class="loading">Status updating...</li>
+  </ul>
+  <script type="text/javascript">
+    $.domReady(function(){
+      getTwitterFeed("liluoliluo", 4, false);
+    });
+  </script>
+  <script src="/javascripts/twitter.js" type="text/javascript"> </script>
+  
+    <a href="http://twitter.com/liluoliluo" class="twitter-follow-button" data-show-count="false">Follow @liluoliluo</a>
+  
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2016 - 落 -
+  <span>
+    <a href="http://www.miibeian.gov.cn" target="_blank">沪ICP备10005385号</a>
+  </span>
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+  <span>
+    <script src="http://s175.cnzz.com/stat.php?id=1892088&web_id=1892088&show=pic" language="JavaScript" charset="gb2312"></script>
+  </span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'liluo';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://liluo.org/blog/2011/08/python-add-watermark-with-pil/';
+        var disqus_url = 'http://liluo.org/blog/2011/08/python-add-watermark-with-pil/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

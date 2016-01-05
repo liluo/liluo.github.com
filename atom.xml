@@ -1,0 +1,2346 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[落]]></title>
+  <link href="http://liluo.org/atom.xml" rel="self"/>
+  <link href="http://liluo.org/"/>
+  <updated>2016-01-03T16:15:14+08:00</updated>
+  <id>http://liluo.org/</id>
+  <author>
+    <name><![CDATA[落]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[非 DBA 也要勇敢的 Online(!) DDL]]></title>
+    <link href="http://liluo.org/blog/2015/12/mysql-online-ddl/"/>
+    <updated>2015-12-30T14:14:00+08:00</updated>
+    <id>http://liluo.org/blog/2015/12/mysql-online-ddl</id>
+    <content type="html"><![CDATA[<p>目前我司没有专职 DBA，所以 Online DDL 需要自己动手。最近操作了几次不同数量级（单表 5 million, 20 million, 80 million）的 Online DDL，这里做下记录，希望这些数据能够对其他和我一样非 DBA 的同学提供点儿参考价值。</p>
+
+<!-- more -->
+
+
+<h3>Production Environments</h3>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>Database: MySQL
+</span><span class='line'>Version: 5.6.19
+</span><span class='line'>Storage Engine: InnoDB
+</span><span class='line'>Migrate Tool: Active Record Migrations<span class="o">(</span>Ruby on Rails<span class="o">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Round 1（5 million）</h3>
+
+<p>第一个回合是给 500W+ 记录的表增加两个字段和一个索引：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>ALTER TABLE <span class="sb">`</span>table<span class="sb">`</span> ADD COLUMN <span class="sb">`</span>foo<span class="sb">`</span> INT DEFAULT 0;
+</span><span class='line'>ALTER TABLE <span class="sb">`</span>table<span class="sb">`</span> ADD COLUMN <span class="sb">`</span>bar<span class="sb">`</span> DATETIME DEFAULT NULL;
+</span><span class='line'>ALTER TABLE <span class="sb">`</span>table<span class="sb">`</span> ADD INDEX <span class="sb">`</span>index_table_on_bar<span class="sb">`</span> <span class="o">(</span><span class="sb">`</span>bar<span class="sb">`</span><span class="o">)</span>;
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>首次操作这么“大规模”（让 DBA 们贱笑了）的 Online(!!!) DDL 内心是有点小复杂……</p>
+
+<p>当时的心理预期是 10 分钟，但是结果却很乐观：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="o">==</span> AddFooToTable: migrating - Shard: <span class="nv">master</span> <span class="o">=============</span>
+</span><span class='line'>-- add_column<span class="o">(</span>:table, :foo, :integer, <span class="o">{</span>:default<span class="o">=</span>&gt;0<span class="o">})</span>
+</span><span class='line'>-&gt; 95.8153s
+</span><span class='line'><span class="o">==</span> AddFooToTable: migrated <span class="o">(</span>95.8155s<span class="o">)</span> - Shard: <span class="nv">master</span> <span class="o">===</span>
+</span><span class='line'><span class="o">==</span> AddBarToTable: migrating - Shard: <span class="nv">master</span> <span class="o">=============</span>
+</span><span class='line'>-- add_column<span class="o">(</span>:table, :bar, :datetime<span class="o">)</span>
+</span><span class='line'>-&gt; 94.1172s
+</span><span class='line'>-- add_index<span class="o">(</span>:table, :bar<span class="o">)</span>
+</span><span class='line'>-&gt; 10.6757s
+</span><span class='line'><span class="o">==</span> AddBarToTable: migrated <span class="o">(</span>104.7929s<span class="o">)</span> -- Shard: <span class="nv">master</span> <span class="o">=</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Round 2（20 million）</h3>
+
+<p>第二回合是 2000W+ 记录的表，更改其中一字段类型(varchar -> integer)：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>ALTER TABLE <span class="sb">`</span>table<span class="sb">`</span> MODIFY <span class="sb">`</span>foo<span class="sb">`</span> INTEGER;
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>有了上次的经历之后，这次已然是云淡风轻，耗时也不出意外：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="o">==</span> ChangeFooTypeInTable: migrating - Shard: <span class="nv">master</span> <span class="o">==============</span>
+</span><span class='line'>-- change_column<span class="o">(</span>:table, :foo, :integer<span class="o">)</span>
+</span><span class='line'>-&gt; 513.9101s
+</span><span class='line'><span class="o">==</span> ChangeFooTypeInTable: migrated <span class="o">(</span>513.9102s<span class="o">)</span> - Shard: <span class="nv">master</span> <span class="o">===</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Round 3（80 million）</h3>
+
+<p>第三回合是 8000W+ 记录的表，增加一个字段和一个索引：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>ALTER TABLE <span class="sb">`</span>table<span class="sb">`</span> ADD COLUMN <span class="sb">`</span>foo<span class="sb">`</span> DATETIME DEFAULT NULL;
+</span><span class='line'>ALTER TABLE <span class="sb">`</span>table<span class="sb">`</span> ADD INDEX <span class="sb">`</span>index_table_on_foo<span class="sb">`</span> <span class="o">(</span><span class="sb">`</span>foo<span class="sb">`</span><span class="o">)</span>;
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>这次的耗时远超预期……因为要避开高峰时段在凌晨操作，我是靠着 Xbox 的《Just Dance》和《Sports Rivals》才勉强坚持住。</p>
+
+<p>好吧，来看一下耗时：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="o">==</span> 20151228112810 AddFooToTable: migrating - Shard: <span class="nv">master</span> <span class="o">===============</span>
+</span><span class='line'>-- add_column<span class="o">(</span>:table, :foo, :datetime<span class="o">)</span>
+</span><span class='line'>-&gt; 4313.0770s
+</span><span class='line'>-- add_index<span class="o">(</span>:table, :foo<span class="o">)</span>
+</span><span class='line'>-&gt; 248.9602s
+</span><span class='line'><span class="o">==</span> 20151228112810 AddFooAtToTable: migrated <span class="o">(</span>4562.0374s<span class="o">)</span> - Shard: <span class="nv">master</span> <span class="o">=</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>其他</h3>
+
+<ul>
+<li><p>如果使用 MySQL 的 master-slave 模式, 同步到 slave 大概需要花费同样的时间（这块儿我们没有做特别具体的统计，只是 master 完成后人工检查 slave 情况得出的一个比较粗暴的结论）。</p></li>
+<li><p>MySQL 官方文档：<a href="https://dev.mysql.com/doc/refman/5.6/en/innodb-create-index-overview.html">Overview of Online DDL</a></p></li>
+</ul>
+
+
+<p><strong>END</strong></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Douban Linguist]]></title>
+    <link href="http://liluo.org/blog/2013/12/douban-linguist/"/>
+    <updated>2013-12-20T14:33:00+08:00</updated>
+    <id>http://liluo.org/blog/2013/12/douban-linguist</id>
+    <content type="html"><![CDATA[<p>今天在 Firelabs 做了关于 <a href="https://github.com/douban/linguist">Douban-linguist</a> 的分享, Slides:</p>
+
+<iframe src="http://www.slideshare.net/slideshow/embed_code/29378436" width="510" height="420" frameborder="0" marginwidth="0" marginheight="0" scrolling="no" style="border:1px solid #CCC;border-width:1px 1px 0;margin-bottom:5px" allowfullscreen> </iframe>
+
+
+<p> <div style="margin-bottom:5px"> <strong> <a href="https://www.slideshare.net/liluo/douban-linguist" title="Douban linguist" target="_blank">Douban linguist</a> </strong> from <strong><a href="http://www.slideshare.net/liluo" target="_blank">liluo</a></strong> </div></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Remote 之工具篇]]></title>
+    <link href="http://liluo.org/blog/2013/11/remote-tools/"/>
+    <updated>2013-11-13T00:02:00+08:00</updated>
+    <id>http://liluo.org/blog/2013/11/remote-tools</id>
+    <content type="html"><![CDATA[<p>最近从北京转到了上海 Office, 与北京技术团队的沟通协作也自然的变成了 Remote。截止到现在已经有一个月多的时间，分享一下自己使用到的工具。</p>
+
+<!-- more -->
+
+
+<h3>Code</h3>
+
+<p><img src="http://i1170.photobucket.com/albums/r539/liluoliluo/logo1_zps6f5124ed.png" alt="Code logo" /></p>
+
+<p>Code + PullRequest 的开发流程，完全没有距离上的差异。</p>
+
+<p><em>Code 是豆瓣内部的代码托管工具(类似 Github)，具体介绍可以看 <a href="http://www.slideshare.net/qingfeng/code-13367019">&lt;Code, 豆瓣工程师乐园></a>、 <a href="http://www.qconshanghai.com/node/383">&lt;工程师文化中的工具“情结”></a>。</em></p>
+
+<h3>Skype</h3>
+
+<p><img src="http://i1170.photobucket.com/albums/r539/liluoliluo/skype-logo_zps4c5d4646.png" alt="Skype logo" /></p>
+
+<p><a href="http://www.skype.com/en/">Skype</a> 是我们平时使用比较多的 IM(另外还有纯工程师交流 IRC)，除了方便的群组和文字聊天功能外，语音和视频也很棒。</p>
+
+<p>工作中讨论、交流，每周五参加 Firelabs 分享全靠它，是目前体验到最好的语音和视频工具(Hangouts 卡顿蛮严重的……)。</p>
+
+<p>另外还有一个实用的共享屏幕(Share Screen)，比如说参加 Firelabs 时看不清投影时可以请分享者共享屏幕给自己。</p>
+
+<h3>Tmux</h3>
+
+<p><img src="http://i1170.photobucket.com/albums/r539/liluoliluo/042e2390-5a4b-4cb2-9179-440989033f02_zpsa60cd8e5.jpg?t=1384268363" alt="Tmux" /></p>
+
+<p>之前仅仅使用 <a href="http://tmux.sourceforge.net/">Tmux</a> 作为终端复用 + 分屏的工具，最近发现其在结对编程方面也是一大利器!!!</p>
+
+<p>使用 Tmux 进行结对编程(需要双方使用各自账号登陆到同一台开发机)：</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>Allow another user access to your tmux session:
+</span><span class='line'># specify the name of your tmux socket with -S when creating it
+</span><span class='line'>tmux -S /tmp/pair
+</span><span class='line'># chmod to allow other users to access it
+</span><span class='line'>chmod 777 /tmp/pair
+</span><span class='line'> 
+</span><span class='line'># now the other user can connect with
+</span><span class='line'>tmux -S /tmp/pair attach</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>TeamViewer</h3>
+
+<p><img src="http://i1170.photobucket.com/albums/r539/liluoliluo/teamviewer_zpsaf2997cf.png" alt="TeamViewer logo" /></p>
+
+<p><a href="http://www.teamviewer.com/en/index.aspx">TeamViewer</a> 是跨平台的远程访问和远程支持一体化解决方案, 甚至可以使用手机上的客户端来控制笔记本，强烈推荐用一下。</p>
+
+<h3>WeChat</h3>
+
+<p>我是最近才开始使用微信的，除了即时、便利之外，和北京的小伙伴们偶尔在群里玩个真心话大冒险的也很有趣，哈哈~</p>
+
+<p>最后，看到自己的博客已经长草了真是……</p>
+
+<p><strong>END</strong></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[我们都爱 Pull Request]]></title>
+    <link href="http://liluo.org/blog/2013/03/we-all-love-pull-request/"/>
+    <updated>2013-03-08T00:14:00+08:00</updated>
+    <id>http://liluo.org/blog/2013/03/we-all-love-pull-request</id>
+    <content type="html"><![CDATA[<p><img src="http://i1170.photobucket.com/albums/r539/liluoliluo/pull-request-logo_zps575a2d31.png" title="Pull Request" alt="Pull Request" /></p>
+
+<p>最近半年多，我们组一直在使用 <a href="https://help.github.com/articles/using-pull-requests">Pull Request</a> 的方式进行开发，写一点儿自己的感受。</p>
+
+<p>说到 Pull Request 就不得不提到 Code Review。当我们还是以 <a href="http://subversion.tigris.org/">SVN</a> 为主要的版本控制时，Code Review 通常是2个人参与(提交者和另外一位同事)，为了 Review 而 Review，实在是无趣。后来也有短暂的一段 <a href="http://mercurial.selenic.com/">Hg</a> 经历（这段基本忘干净了，想了几分钟都没什么印象……），直到转向战无不胜的 <a href="http://git-scm.com/">Git</a>&#8230;</p>
+
+<!-- more -->
+
+
+<p>事情是从清风老师签名“等你的 pull request”开始的，毛线把 Pull Request 的 Web 界面、功能(评论, 行间评论)做到超赞的时候，Pull Request 的开发方式就成了我们组的主流。当代码需要 Review 的时候，&#8221;@&#8221; 上相关同事，于是大家都跳出来对 diff 中某个文件、某段代码甚至某行“评头论足”、“指手画脚”，好不热闹。</p>
+
+<p><img src="http://i1170.photobucket.com/albums/r539/liluoliluo/PullRequest_zpsda28fdd7.png" title="Pull Request" alt="Pull Request" /></p>
+
+<p>最初的时候，对于这种情况挺不适应的，特别是遇到自己的代码被吐槽时那叫一个脸红心跳……过了一小段时间，渐渐的没有了这种感觉（贱贱的脸皮变厚了，哈哈哈哈），就体会到 Pull Request 的好处了：</p>
+
+<h3>代码质量更有保证</h3>
+
+<p>参与进来的的同事更多，看问题更全面，对代码本身甚至设计理念都会有一个保证</p>
+
+<h3>更多人受益</h3>
+
+<p>除了代码提交者本身，参与进来的同事甚至“路过”的同事都可以从 comments 中看到整个讨论的过程</p>
+
+<h3>学习效果好</h3>
+
+<p>对于提交者来讲有点心理压力，印象更深刻</p>
+
+<h3>正能量</h3>
+
+<p>当提交很棒的功能或者漂亮的代码时会被各种赞美，于是脑子一热又多做一个需求</p>
+
+<h3>很有趣，欢乐!!!</h3>
+
+<p>Comments 中的各种表情、卖萌、甚至还有调戏、基情，让人更愿意参与，更多滋味更多欢笑更多奔放!!!</p>
+
+<p><img src="http://i1170.photobucket.com/albums/r539/liluoliluo/694ba542-0d15-45bc-8efb-f6cf4f9449fe_zpse8fec570.jpg" title="Pull Requesgt" alt="Pull Request" /></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[怎样制作一个 Python Egg]]></title>
+    <link href="http://liluo.org/blog/2012/08/how-to-create-python-egg/"/>
+    <updated>2012-08-30T20:58:00+08:00</updated>
+    <id>http://liluo.org/blog/2012/08/how-to-create-python-egg</id>
+    <content type="html"><![CDATA[<p><img src="http://i1170.photobucket.com/albums/r539/liluoliluo/7f3c8c9e.jpg" title="Python Egg" alt="Python Egg" /></p>
+
+<p>前段时间在玩 OAuth2，尝试了很多个 Python 封装的 OAuth2 第三方库，感觉都不是很对自己胃口(最无语的是那个叫作 oauth2 的库，居然是 OAuth 1.0 的实现？？！！)，于是自己写了一个叫作 <a href="http://pypi.python.org/pypi/py-oauth2/">py-oauth2</a> 的“库”。之所以取这个名字是因为之前用过一个叫 py-trello 的库，以为叫 py-xxx 会很洋气，现在想想真是土死了…</p>
+
+<p>制作打包一个 Python Egg 并部署整个过程还蛮有意思的，下面小教程(这里以制作一个叫作 bee 的 Egg 为例)～</p>
+
+<!-- more -->
+
+
+<h2>制作</h2>
+
+<p>先创建一个项目文件夹:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>mkdir bee-egg <span class="c"># 这个名字可以随便取</span>
+</span><span class='line'><span class="nv">$ </span><span class="nb">cd </span>bee-egg
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>在里边建一个叫 bee 的文件夹(逻辑比较简单的话可以直接建一个叫作 bee.py 的文件)，放业务逻辑代码:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>mkdir bee
+</span><span class='line'>touch bee/__init__.py
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>其中 bee/<strong>init</strong>.py 写几行代码:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="c"># -*- coding: utf-8 -*-</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">def</span> <span class="nf">hoot</span><span class="p">():</span>
+</span><span class='line'>    <span class="k">return</span> <span class="s">&#39;hum hum&#39;</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">def</span> <span class="nf">add</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+</span><span class='line'>    <span class="k">return</span> <span class="n">x</span> <span class="o">+</span> <span class="n">y</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>在 bee-egg 目录中创建 Egg 的配置文件 setup.py :</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="c">#!/usr/bin/env python</span>
+</span><span class='line'>
+</span><span class='line'><span class="kn">from</span> <span class="nn">setuptools</span> <span class="kn">import</span> <span class="n">setup</span><span class="p">,</span> <span class="n">find_packages</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">setup</span><span class="p">(</span>
+</span><span class='line'>    <span class="n">name</span> <span class="o">=</span> <span class="s">&#39;bee&#39;</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">version</span> <span class="o">=</span> <span class="s">&#39;0.0.1&#39;</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">keywords</span> <span class="o">=</span> <span class="p">(</span><span class="s">&#39;bee&#39;</span><span class="p">,</span> <span class="s">&#39;egg&#39;</span><span class="p">),</span>
+</span><span class='line'>    <span class="n">description</span> <span class="o">=</span> <span class="s">&#39;a simple egg&#39;</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">license</span> <span class="o">=</span> <span class="s">&#39;MIT License&#39;</span><span class="p">,</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">url</span> <span class="o">=</span> <span class="s">&#39;http://liluo.org&#39;</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">author</span> <span class="o">=</span> <span class="s">&#39;liluo&#39;</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">author_email</span> <span class="o">=</span> <span class="s">&#39;i@liluo.org&#39;</span><span class="p">,</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">packages</span> <span class="o">=</span> <span class="n">find_packages</span><span class="p">(),</span>
+</span><span class='line'>    <span class="n">include_package_data</span> <span class="o">=</span> <span class="bp">True</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">platforms</span> <span class="o">=</span> <span class="s">&#39;any&#39;</span><span class="p">,</span>
+</span><span class='line'>    <span class="n">install_requires</span> <span class="o">=</span> <span class="p">[],</span>
+</span><span class='line'><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><em>*setup 中完整的参数及说明可以看</em> <a href="http://docs.python.org/distutils/setupscript.html#additional-meta-data">http://docs.python.org/distutils/setupscript.html#additional-meta-data</a></p>
+
+<p>当前目录文件结构如下：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>bee-egg/
+</span><span class='line'>        bee/
+</span><span class='line'>           __init__.py
+</span><span class='line'>        setup.py
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>打包</h2>
+
+<p>打包是最重要却又最简单的一步，执行:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>python setup.py xxxx
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>即可。比较主流的2种打包格式：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="c"># 以下所有生成文件将在当前路径下 dist 目录中</span>
+</span><span class='line'>python setup.py bdist_egg <span class="c"># 生成类似 bee-0.0.1-py2.7.egg，支持 easy_install </span>
+</span><span class='line'>python setup.py sdist     <span class="c"># 生成类似 bee-0.0.1.tar.gz，支持 pip </span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>当然还有其他非主流格式或者其他选项，可以通过下面这个命令查看：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>python setup.py --help-commands
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>部署到 PyPI</h2>
+
+<h4>注册 Egg</h4>
+
+<p>可以通过 SSH 或者 <a href="http://pypi.python.org/pypi?%3Aaction=submit_form">web form</a> ，SSH 步骤：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>python setup.py register
+</span><span class='line'>running register
+</span><span class='line'>running egg_info
+</span><span class='line'>writing bee.egg-info/PKG-INFO
+</span><span class='line'>writing top-level names to bee.egg-info/top_level.txt
+</span><span class='line'>writing dependency_links to bee.egg-info/dependency_links.txt
+</span><span class='line'>reading manifest file <span class="s1">&#39;bee.egg-info/SOURCES.txt&#39;</span>
+</span><span class='line'>writing manifest file <span class="s1">&#39;bee.egg-info/SOURCES.txt&#39;</span>
+</span><span class='line'>running check
+</span><span class='line'>We need to know who you are, so please choose either:
+</span><span class='line'> 1. use your existing login,
+</span><span class='line'> 2. register as a new user,
+</span><span class='line'> 3. have the server generate a new password <span class="k">for </span>you <span class="o">(</span>and email it to you<span class="o">)</span>, or
+</span><span class='line'> 4. quit
+</span><span class='line'>Your selection <span class="o">[</span>default 1<span class="o">]</span>:
+</span><span class='line'>
+</span><span class='line'>Username: liluo
+</span><span class='line'>Password:
+</span><span class='line'>Registering bee to http://pypi.python.org/pypi
+</span><span class='line'>Server response <span class="o">(</span>200<span class="o">)</span>: OK
+</span><span class='line'>I can store your PyPI login so future submissions will be faster.
+</span><span class='line'><span class="o">(</span>the login will be stored in /Users/luo/.pypirc<span class="o">)</span>
+</span><span class='line'>Save your login <span class="o">(</span>y/N<span class="o">)</span>?y
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><em>*关于 register 更详细的内容可以看</em> <a href="http://docs.python.org/distutils/packageindex.html">http://docs.python.org/distutils/packageindex.html</a></p>
+
+<h4>上传到 PyPI</h4>
+
+<p>上传文件也是有 SSH 和 web form 2种方法。</p>
+
+<p>web form: 在浏览器登陆到 PyPI 点击 Your packages 中 Egg 的项目，然后选择某个版本的 files 即可看到上传界面。</p>
+
+<p>SSH:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>python setup.py sdist bdist_egg upload
+</span><span class='line'><span class="c"># 这里上传的是 .tar.gz 压缩包和 .egg 文件</span>
+</span><span class='line'><span class="c"># 屏幕上大片信息输出，最后会看到</span>
+</span><span class='line'>running upload
+</span><span class='line'>Submitting dist/bee-0.0.1.tar.gz to http://pypi.python.org/pypi
+</span><span class='line'>Server response <span class="o">(</span>200<span class="o">)</span>: OK
+</span><span class='line'>Submitting dist/bee-0.0.1-py2.7.egg to http://pypi.python.org/pypi
+</span><span class='line'>Server response <span class="o">(</span>200<span class="o">)</span>: OK
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>安装测试</h4>
+
+<p>先用 pip 安装：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>pip install bee
+</span><span class='line'>Downloading/unpacking bee
+</span><span class='line'>  Downloading bee-0.0.1.tar.gz
+</span><span class='line'>  Running setup.py egg_info <span class="k">for </span>package bee
+</span><span class='line'>
+</span><span class='line'>Installing collected packages: bee
+</span><span class='line'>  Running setup.py install <span class="k">for </span>bee
+</span><span class='line'>
+</span><span class='line'>Successfully installed bee
+</span><span class='line'>Cleaning up...
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>测试：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>python
+</span><span class='line'>&gt;&gt;&gt; import bee
+</span><span class='line'>&gt;&gt;&gt; dir<span class="o">(</span>bee<span class="o">)</span>
+</span><span class='line'><span class="o">[</span><span class="s1">&#39;__builtins__&#39;</span>, <span class="s1">&#39;__doc__&#39;</span>, <span class="s1">&#39;__file__&#39;</span>, <span class="s1">&#39;__name__&#39;</span>, <span class="s1">&#39;__package__&#39;</span>, <span class="s1">&#39;__path__&#39;</span>, <span class="s1">&#39;add&#39;</span>, <span class="s1">&#39;hoot&#39;</span><span class="o">]</span>
+</span><span class='line'>&gt;&gt;&gt; bee.add<span class="o">(</span>1,3<span class="o">)</span>
+</span><span class='line'>4
+</span><span class='line'>&gt;&gt;&gt; from bee import hoot
+</span><span class='line'>&gt;&gt;&gt; hoot<span class="o">()</span>
+</span><span class='line'><span class="s1">&#39;hum hum&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Yeah！现在世界人民都可以用 [bee]<a href="http://pypi.python.org/pypi/bee/">http://pypi.python.org/pypi/bee/</a> 这个 Python Egg 了～</p>
+
+<p>卸载掉用 easy_install 试下:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>pip uninstall bee
+</span><span class='line'>Uninstalling bee:
+</span><span class='line'>  /Library/Python/2.7/site-packages/bee
+</span><span class='line'>  /Library/Python/2.7/site-packages/bee-0.0.1-py2.7.egg-info
+</span><span class='line'>Proceed <span class="o">(</span>y/n<span class="o">)</span>? y
+</span><span class='line'>  Successfully uninstalled bee
+</span><span class='line'><span class="nv">$ </span>easy_install bee
+</span><span class='line'>Searching <span class="k">for </span>bee
+</span><span class='line'>Reading http://pypi.python.org/simple/bee/
+</span><span class='line'>Reading http://liluo.org
+</span><span class='line'>Best match: bee 0.0.1
+</span><span class='line'>Downloading http://pypi.python.org/packages/2.7/b/bee/bee-0.0.1-py2.7.egg#md5<span class="o">=</span>6b5a719f1ca42367fb05d1e3eb45fbe5
+</span><span class='line'>Processing bee-0.0.1-py2.7.egg
+</span><span class='line'>Moving bee-0.0.1-py2.7.egg to /Library/Python/2.7/site-packages
+</span><span class='line'>Adding bee 0.0.1 to easy-install.pth file
+</span><span class='line'>
+</span><span class='line'>Installed /Library/Python/2.7/site-packages/bee-0.0.1-py2.7.egg
+</span><span class='line'>Processing dependencies <span class="k">for </span>bee
+</span><span class='line'>Finished processing dependencies <span class="k">for </span>bee
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>可以再重做一下上面的测试，验证一下。</p>
+
+<p><em>*关于 upload 更详细的内容可以看</em> <a href="http://docs.python.org/distutils/uploading.html">http://docs.python.org/distutils/uploading.html</a></p>
+
+<h2>Tips</h2>
+
+<h4>pip install xxxx 时默认只会找对应的压缩包文件</h4>
+
+<p>当时我用 easy_install 安装没问题，但是 pip 每次都说找不到资源。我盯着 <a href="http://www.douban.com/people/hongqn/">@hongqn</a> 在 PyPI 上的 CaoE 足足2分钟才反应过来，原来它是需要一个压缩包格式的文件。</p>
+
+<h4>setup.py 中调用当前目录的文件一定要加 MANIFEST.in 并将调用文件 include 进来</h4>
+
+<p>使用 python setup.py sdist 打包时，如果 setup.py 调用了当前目录中的文件(如README.rst):</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="n">long_description</span> <span class="o">=</span> <span class="nb">open</span><span class="p">(</span><span class="s">&#39;README.rst&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>一定要在增加 MANIFEST.in 文件并将调用文件 include 进来，否则将导致用户在 pip install 时报文件找不到的错误，示例:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nv">$ </span>cat MANIFEST.in
+</span><span class='line'>include README.rst
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>更详情的可以看 <a href="http://docs.python.org/distutils/sourcedist.html#specifying-the-files-to-distribute">http://docs.python.org/distutils/sourcedist.html#specifying-the-files-to-distribute</a></p>
+
+<h4>偶尔去看一下自己的 Egg 在 PyPI 上的下载数也挺欢乐的</h4>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>Version: 0.0.3
+</span><span class='line'>py-oauth2-0.0.3.tar.gz<span class="o">(</span>251<span class="o">)</span>
+</span><span class='line'>py_oauth2-0.0.3-py2.7.egg<span class="o">(</span>218<span class="o">)</span>
+</span><span class='line'>
+</span><span class='line'>Version: 0.0.2
+</span><span class='line'>py-oauth2-0.0.2.tar.gz<span class="o">(</span>376<span class="o">)</span>
+</span><span class='line'>py_oauth2-0.0.2-py2.6.egg<span class="o">(</span>435<span class="o">)</span>
+</span><span class='line'>py_oauth2-0.0.2-py2.7.egg<span class="o">(</span>304<span class="o">)</span>
+</span><span class='line'>
+</span><span class='line'>Version: 0.0.1
+</span><span class='line'>py_oauth2-0.0.1-py2.6.egg<span class="o">(</span>478<span class="o">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><strong>END</strong></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Crontab 使用入门]]></title>
+    <link href="http://liluo.org/blog/2012/07/how-to-use-crontab/"/>
+    <updated>2012-07-02T00:22:00+08:00</updated>
+    <id>http://liluo.org/blog/2012/07/how-to-use-crontab</id>
+    <content type="html"><![CDATA[<p><em>半夜睡不着无聊更新下博客……</em></p>
+
+<h3>Crontab 简介</h3>
+
+<p>crontab命令常见于Unix和类Unix的操作系统之中，用于设置周期性被执行的指令。该命令从标准输入设备读取指令，并将其存放于“crontab”文件中，以供之后读取和执行。该词来源于希腊语 chronos(χρόνος)，原意是时间。通常，crontab储存的指令被守护进程激活， crond常常在后台运行，每一分钟检查是否有预定的作业需要执行。这类作业一般称为cron jobs。(引用 <a href="http://baike.baidu.com/view/1229061.htm" title="crontab">百度百科</a> )</p>
+
+<h3>Crontab 使用方法</h3>
+
+<p>man crontab 一下会发现有以下2种用法:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>crontab <span class="o">[</span>-u user<span class="o">]</span> file
+</span><span class='line'>crontab <span class="o">[</span>-u user<span class="o">]</span> <span class="o">{</span> -l | -r | -e <span class="o">}</span>
+</span><span class='line'><span class="c"># 其中 -u user 为可选项，当无 -u 项时为当前用户</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>第1行用法，如果 file 文件存在，则将文件复制到 crontabs 目录；如 file 不存在则接受标准输入方式。</p>
+
+<p>第2行用法有3个选项：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>-l 列出当前 crontab 配置<span class="o">(</span>Display the current crontab on standard output<span class="o">)</span>
+</span><span class='line'>-r 删除当前 crontab 配置<span class="o">(</span>Remove the current crontab<span class="o">)</span>
+</span><span class='line'>-e 编辑当前 crontab 配置<span class="o">(</span>Edit the current crontab using the editor<span class="o">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<!-- more -->
+
+
+<h3>Crontab 使用语法</h3>
+
+<p>Crontab 语法很简单，为 &#8220;周期 命令&#8221; 的形式，具体如下：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>*  *  *  *  *  <span class="nb">command </span>to be executed
+</span><span class='line'>┬  ┬  ┬  ┬  ┬
+</span><span class='line'>│  │  │  │  │
+</span><span class='line'>│  │  │  │  │
+</span><span class='line'>│  │  │  │  └───── day of week <span class="o">(</span>0 - 6<span class="o">)</span> <span class="o">(</span>0 is Sunday, or use names<span class="o">)</span>
+</span><span class='line'>│  │  │  └────────── month <span class="o">(</span>1 - 12<span class="o">)</span>
+</span><span class='line'>│  │  └─────────────── day of month <span class="o">(</span>1 - 31<span class="o">)</span>
+</span><span class='line'>│  └──────────────────── hour <span class="o">(</span>0 - 23<span class="o">)</span>
+</span><span class='line'>└───────────────────────── min <span class="o">(</span>0 - 59<span class="o">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>上面例子中 &#8220;*&#8221; 依次代表的是分、时、日、月、礼拜几，看一下周期时间的具体格式：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>Field name  Mandatory?  Allowed values  Allowed special characters
+</span><span class='line'>Minutes       Yes         0-59               * / , -
+</span><span class='line'>Hours         Yes         0-23               * / , -
+</span><span class='line'>Day of month  Yes         1-31               * / , - ? L W
+</span><span class='line'>Month         Yes         1-12 or JAN-DEC    * / , -
+</span><span class='line'>Day of week   Yes         0-6 or SUN-SAT     * / , - ? L <span class="c">#</span>
+</span><span class='line'>Year          No          1970–2099          * / , -
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>特殊符号说明：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>* cron表达式匹配的字段的所有值, 例如第4列用*表示每月
+</span><span class='line'>/ 描述范围的增量, 如第1列使用 */15 表示每15分钟执行一次
+</span><span class='line'>, 表示是一个List，如第1列使用 10,20,30 表示在每小时的第10、20、30分钟执行
+</span><span class='line'>- 定义范围，如第4列使用 1-5 表示在每年的1～5月执行
+</span><span class='line'>? 只在日期和星期字段出现，表示无意义的值，相当于定位符
+</span><span class='line'>L 只在日期和星期字段出现，如在日期字段表示当月最后一天，在星期字段则表示星期6（如果星期字段为4L则为最后当月最后一个星期5<span class="o">)</span>.
+</span><span class='line'>W 只在日期字段出现，如 1W 表示离1号最近的工作日
+</span><span class='line'><span class="c"># 只在星期字段出现，如 4#3 表示当月第3个星期5</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>一些例子：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>每年1月1日0点0分 0 0 1 1 *
+</span><span class='line'>每月1日0点0分    0 0 1 * *
+</span><span class='line'>每周日0点0分     0 0 * * 0
+</span><span class='line'>每天0点0分       0 0 * * *
+</span><span class='line'>每小时0分        0 * * * *
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Tips</h3>
+
+<p><strong>command 标准输出发送 email</strong></p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>30 7 * * * python test.py | mail -e -s <span class="s2">&quot;subject&quot;</span> xxxx@liluo.org
+</span><span class='line'><span class="c"># 需配置好 send_mail</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><strong>命令之后重定向</strong></p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">command</span> &gt; file 把标准输出重定向到文件
+</span><span class='line'><span class="nb">command</span> &gt;&gt; file 把标准输出追加到文件
+</span><span class='line'>
+</span><span class='line'><span class="nb">command </span>1 &gt; file 把标准输出重定向到文件
+</span><span class='line'><span class="nb">command </span>2 &gt; file 把标准错误重定向到文件
+</span><span class='line'><span class="nb">command </span>2 &gt;&gt; file 把标准输出追加到文件
+</span><span class='line'><span class="nb">command </span>2&gt;&amp;1 把command命令标准错误重定向到标准输出
+</span><span class='line'><span class="nb">command</span> &gt; file 2&gt;&amp;1 把标准输出和标准错误一起重定向到文件
+</span><span class='line'><span class="nb">command</span> &gt;&gt; file 2&gt;&amp;1 把标准输出和标准错误一起追加到文件
+</span><span class='line'>
+</span><span class='line'><span class="nb">command</span> &lt; file 把command命令以file文件作为标准输入
+</span><span class='line'><span class="nb">command</span> &lt; file &gt;file2 把command命令以file文件作为标准输入，以file2文件作为标准输出
+</span><span class='line'><span class="nb">command</span> &lt;&amp;- 关闭标准输入
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><strong>EOF</strong></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[使用 Git submodule 和 vim-pathogen 管理、同步 Vim 插件及配置]]></title>
+    <link href="http://liluo.org/blog/2012/05/using-git-submodule-and-vim-pathogen-for-vim-configuraction-management/"/>
+    <updated>2012-05-29T20:24:00+08:00</updated>
+    <id>http://liluo.org/blog/2012/05/using-git-submodule-and-vim-pathogen-for-vim-configuraction-management</id>
+    <content type="html"><![CDATA[<p>在多台机器（比如 Mac 和多台服务器、开发机）上使用 Vim 经常需要同步配置文件 .vimrc，之前都是用:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>scp .vimrc theoden:~
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>如果加上形形色色的插件，再比如给 plugin 升级就有些兵荒马乱的麻烦了。今天早上在看 <a href="https://github.com/vim-ruby/vim-ruby/">vim-ruby</a> 的时候发现了很 Cool 的项目 <a href="https://github.com/tpope/vim-pathogen/">vim-pathogen</a>，并且使用它顺利的搞定了 Vim 的配置及插件同步。其中同步使用的是 Github + Git submodule，插件管理使用 vim-pathogen(其实 vim-pathogen 也是 Vim 的一个插件，只不过这是一个管理插件的插件)，下面记录一下整个过程。</p>
+
+<!-- more -->
+
+
+<h4>备份原来的 .vimrc 文件和 .vim 目录</h4>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>mv .vimrc<span class="o">{</span>,.bak<span class="o">}</span> <span class="c"># .vimrc -&gt; .vimrc.bak</span>
+</span><span class='line'>mv .vim<span class="o">{</span>,.bak<span class="o">}</span>   <span class="c"># .vim -&gt; .vim.bak </span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>新建 .vim/bundle 目录</h4>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>mkdir -p ~/.vim/bundle
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>初始化 Git 仓库</h4>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">cd</span> ~/.vim
+</span><span class='line'>git init
+</span><span class='line'>git add .
+</span><span class='line'>git commit -m <span class="s2">&quot;init&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>将代码托管到 Github</h4>
+
+<p>登陆到 <a href="https://github.com/">https://github.com/</a> ，新建一个 Repositorie 命名为 <a href="https://github.com/liluo/dotvim/">dotvim</a>，然后执行：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>git remote add origin git@github.com:liluo/dotvim.git <span class="c"># 请改成自己的代码仓库地址</span>
+</span><span class='line'>git push origin master
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>安装并配置启用 vim-pathogen 插件</h4>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>git submodule add git://github.com/tpope/vim-pathogen.git bundle/vim-pathogen
+</span><span class='line'><span class="nb">echo</span> -e <span class="s2">&quot;runtime bundle/vim-pathogen/autoload/pathogen.vim\ncall pathogen#infect()\n&quot;</span> &gt;&gt; ~/.vim/vimrc
+</span><span class='line'><span class="c"># 如果想使用原来的 .vimrc 文件则可以</span>
+</span><span class='line'><span class="c"># cp ~/.vimrc.bak ~/.vim/vimrc</span>
+</span><span class='line'><span class="c"># 但是必须将以下2行加到 vimrc 的首行</span>
+</span><span class='line'><span class="c"># runtime bundle/vim-pathogen/autoload/pathogen.vim</span>
+</span><span class='line'><span class="c"># call pathogen#infect()</span>
+</span><span class='line'>ln -s ~/.vim/vimrc ~/.vimrc
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>安装插件</h4>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="c">#git submodule add 插件 Git 仓库地址 bundle/插件名字</span>
+</span><span class='line'>git submodule add git://github.com/tpope/vim-markdown.git bundle/vim-markdown
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>升级插件</h4>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">cd</span> ~/.vim/bundle/vim-markdown <span class="c"># 将 vim-markdown 替换为需要升级的插件名字</span>
+</span><span class='line'>git pull origin master
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>升级所有插件</h4>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">cd</span> ~/.vim
+</span><span class='line'>git submodule foreach git pull origin master
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>删除插件</h4>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>git rm bundle/vim-markdown <span class="c"># 将 vim-markdown 替换为需要升级的插件名字</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>将整个目录提交到 Github</h4>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">cd</span> ~/.vim
+</span><span class='line'>git push origin master
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>在其他机器使用相同配置</h4>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>git clone http://github.com/username/dotvim.git ~/.vim
+</span><span class='line'>ln -s ~/.vim/vimrc ~/.vimrc
+</span><span class='line'><span class="nb">cd</span> ~/.vim
+</span><span class='line'>git submodule init
+</span><span class='line'>git submodule update
+</span></code></pre></td></tr></table></div></figure>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[使用Python/Ruby/Bash Post 文件二进制流（stream）]]></title>
+    <link href="http://liluo.org/blog/2012/05/post-file-stream-with-linux-python-ruby-bash/"/>
+    <updated>2012-05-04T23:14:00+08:00</updated>
+    <id>http://liluo.org/blog/2012/05/post-file-stream-with-linux-python-ruby-bash</id>
+    <content type="html"><![CDATA[<p>之前经常使用Python的urllib, urllib2两个库写爬虫或者是向第三方接口post数据，很是清爽。今天有需求要把图片文件post到第三方接口，当我又祭出urllib+urllib2两大法宝时，结果很不意外的被洗刷刷了……</p>
+
+<p>被洗刷的感觉很不爽，需求是流氓，你弱它就强，所以一定要搞定它 XD</p>
+
+<p>各种搜罗和实践测试，最后得到了python\ruby\bash几个版本：</p>
+
+<!-- more -->
+
+
+<h2>Pyhton版1</h2>
+
+<p>使用第三方库poster, 安装：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>easy_install poster
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>代码:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="kn">from</span> <span class="nn">poster.encode</span> <span class="kn">import</span> <span class="n">multipart_encode</span>
+</span><span class='line'><span class="kn">from</span> <span class="nn">poster.streaminghttp</span> <span class="kn">import</span> <span class="n">register_openers</span>
+</span><span class='line'><span class="kn">import</span> <span class="nn">urllib2</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">register_openers</span><span class="p">()</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">datagen</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="n">multipart_encode</span><span class="p">({</span>
+</span><span class='line'>                     <span class="s">&#39;image&#39;</span><span class="p">:</span> <span class="nb">open</span><span class="p">(</span><span class="s">&#39;/Users/luo/img1.jpg&#39;</span><span class="p">,</span> <span class="s">&#39;rb&#39;</span><span class="p">)</span>
+</span><span class='line'>                   <span class="p">})</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">request</span> <span class="o">=</span> <span class="n">urllib2</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="s">&#39;http://localhost:4567/&#39;</span><span class="p">,</span> <span class="n">datagen</span><span class="p">,</span> <span class="n">headers</span><span class="p">)</span>
+</span><span class='line'><span class="k">print</span> <span class="n">urllib2</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">request</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>参考：<a href="http://atlee.ca/software/poster/index.html">http://atlee.ca/software/poster/index.html</a></p>
+
+<h2>Python版2</h2>
+
+<p>使用第三方库requests（同事 Tachikoma 推荐），安装：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>easy_install requests
+</span><span class='line'>或者
+</span><span class='line'>pip install requests
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>代码：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="kn">import</span> <span class="nn">requests</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">url</span> <span class="o">=</span> <span class="s">&#39;http://localhost:4567&#39;</span>
+</span><span class='line'><span class="n">files</span><span class="o">=</span><span class="p">{</span><span class="s">&#39;image&#39;</span><span class="p">:</span> <span class="p">(</span><span class="s">&#39;img1.jpg&#39;</span><span class="p">,</span><span class="nb">open</span><span class="p">(</span><span class="s">&#39;/Users/luo/img1.jpg&#39;</span><span class="p">,</span> <span class="s">&#39;rb&#39;</span><span class="p">))}</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">files</span><span class="o">=</span><span class="n">files</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>参考：<a href="http://docs.python-requests.org/en/latest/user/quickstart/">http://docs.python-requests.org/en/latest/user/quickstart/</a></p>
+
+<h2>Ruby版</h2>
+
+<p>使用gem包rest-client，安装：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>gem install rest-client
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>代码：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;rest_client&#39;</span>
+</span><span class='line'><span class="no">RestClient</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s1">&#39;http://localhost:4567/&#39;</span><span class="p">,</span>
+</span><span class='line'>                <span class="ss">:image</span> <span class="o">=&gt;</span> <span class="no">File</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="s1">&#39;/Users/luo/img1.jpg&#39;</span><span class="p">))</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>参考：<a href="https://github.com/adamwiggins/rest-client">https://github.com/adamwiggins/rest-client</a></p>
+
+<h2>Bash版</h2>
+
+<p>使用curl，安装：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>不用讲了吧？
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>代码：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>curl -F <span class="nv">image</span><span class="o">=</span>@/Users/luo/img1.jpg http://localhost:4567
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>参考：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>man curl
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>测试的服务器端代码:</h3>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="nb">require</span> <span class="s1">&#39;sinatra&#39;</span>
+</span><span class='line'><span class="n">post</span> <span class="s1">&#39;/&#39;</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">data</span> <span class="o">=</span> <span class="n">params</span><span class="o">[</span><span class="s1">&#39;image&#39;</span><span class="o">][</span><span class="ss">:tempfile</span><span class="o">].</span><span class="n">read</span>
+</span><span class='line'>  <span class="n">f</span> <span class="o">=</span> <span class="no">File</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="s1">&#39;image1.jpg&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span>
+</span><span class='line'>  <span class="n">f</span><span class="o">.</span><span class="n">puts</span> <span class="n">data</span>
+</span><span class='line'>  <span class="n">f</span><span class="o">.</span><span class="n">close</span>
+</span><span class='line'>  <span class="s1">&#39;ok&#39;</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[单元测试的那些事]]></title>
+    <link href="http://liluo.org/blog/2012/03/about-unittest/"/>
+    <updated>2012-03-14T23:05:00+08:00</updated>
+    <id>http://liluo.org/blog/2012/03/about-unittest</id>
+    <content type="html"><![CDATA[<p>单元测试是在第一次面豆瓣时候被拒之后才开始接触的，那时候去网上g了此资料，感觉对各种“不可能出错的事情”测试是无聊到极致而又闲着蛋疼的人才会做的。之后也有实践，很长一段时间用&#8221;DDT&#8221;应付下形式，直到有1天……</p>
+
+<p>今天，在豆瓣的HappyDay现场，来记录一下自己和unittest之间不得不说的几件事。</p>
+
+<!-- more -->
+
+
+<h3>转变</h3>
+
+<p>在豆瓣入职之后很长一段时间里，@cnborn 和 @zchi 对unittest各种赞扬，也会刻意把一些需要unittest的事情给我来做，让我看各种TDD的书。但是这些都经历了以后，我依然对unittest不屑一顾。</p>
+
+<p>事情的转机在是一个即将下班的6点，那天的状态实在是不好，代码也写的心不在焉，unittest也很给面子的报N多fail。我觉得有必要认真看下是什么情况，结果看到import error，查了下代码发现是自己把方法名给写错了，那种懊悔的心情真的很难形容……对，就是这样一个很低级的错误让我认识到了unittest真正的意义，于是也有意识的会把原来的DDT向TDD 转换。当然之后还会很多大小事件让我更加乐意去实践unittest，比如看下面——</p>
+
+<h3>重构</h3>
+
+<p>2012年初我做了一件特别有意义的开发任务——重构。其实就算是2个月后的现在，内心还是有些感慨。简单来说，这次重构的目的是为了摘掉ORM（关于ORM的坑，谁进去过谁知道……），改进代码质量，统一代码命名、风格等等。说来这是我第1次对项目整体性、系统性的重构，感谢cnborn~</p>
+
+<p>重构的过程会让人成长很多，像一面放大镜，可以学到同事特别棒的代码写法，也会发现一些逻辑及各种xxoo的问题……当然，这些不是重点～重构过程中最怕的是没有unittest！！！在错综而又混乱的命名中实在理解不能，看到那些没有unittest的的实现，根本就是无从下手，各种想痛苦纠结……然后，怎样呢？补unittest的case，有几天时间我就是在疯狂的补写case（最后的case比重构前多了一倍，这都是后话了）。</p>
+
+<p>没有unittest的代码真的会让重构或者维护的同事发疯的，没有unittest是对自己的代码对同事不负责任，只写实现不写unittest的人就是流氓兔！！</p>
+
+<h3>HappyDay</h3>
+
+<p>首先解释下，happyday是豆瓣工程师的盛大节日，绝对远超三八节于女同胞们、六一儿童节于宝宝们的意义。这里提到happyday，是因为今天的happyday的主题就是unittest。将电脑投放到大屏幕，各位coder轮流上去写代码，鸭梨很大有木有……我和zchi是我比赛小分队里第1组上场的，zchi写unittest我写实现。不知道zchi是怎样的状态，我上场整个过程中手都是在抖着，阿门。看来以后有机会应该多练习这种众人注目的鸭梨下写代码的能力 : )</p>
+
+<p>@豆瓣 HappyDay 现场</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Python 使用 PIL 给图片添加水印]]></title>
+    <link href="http://liluo.org/blog/2011/08/python-add-watermark-with-pil/"/>
+    <updated>2011-08-09T22:46:00+08:00</updated>
+    <id>http://liluo.org/blog/2011/08/python-add-watermark-with-pil</id>
+    <content type="html"><![CDATA[<p>前几天在做一个给指定相册添加水印的功能，使用的是PIL(Python Image Library)。
+先看一下网上，找到这篇：<a href="http://code.activestate.com/recipes/362879-watermark-with-pil/">Watermark with PIL (Python recipe)</a> 于是，处理水印的核心代码就差不多有了～</p>
+
+<p>当然，问题也接着来了，首先就是拿到的图片文件和水印文件。我这边得到上传图片文件基本上会是文件二进制数据流或者由Flash post过来的application/octet-stream类型的二进制数据流，并不能像参考中的代码使用指定路径拿到文件，所以数据流进行处理：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="kn">import</span> <span class="nn">Image</span><span class="o">,</span> <span class="nn">ImageEnhance</span>
+</span><span class='line'><span class="kn">from</span> <span class="nn">cStringIO</span> <span class="kn">import</span> <span class="n">StringIO</span>
+</span><span class='line'><span class="n">img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">StringIO</span><span class="p">(</span><span class="n">img_data</span><span class="p">))</span> <span class="c"># img_data 是post过来的数据流</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>这样就可以拿到一个Image对象了。再使用类似参考代码对它进行水印处理。</p>
+
+<!-- more -->
+
+
+<p>然后在上传图片的时候，依然使用原来的机制，这里再把加过水印的数据流丢出去：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="n">new_img</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
+</span><span class='line'><span class="n">img</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">new_img</span><span class="p">,</span> <span class="n">img_format</span><span class="p">,</span> <span class="n">quality</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span> <span class="c"># quality来指定生成图片的质量，范围是0～100</span>
+</span><span class='line'><span class="n">reutrn</span> <span class="n">new_img</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>代码上线不久之后，就有同事反映说有png图片上传之后会原图会变掉，我拿png去上传之后效果正常，于是把他那张图拿过来测试，果然报错。后来发现他那张png使用的模式是&#8217;RGBA&#8217;, 而我们一般情况下的png或者gif模式是&#8217;P&#8217;，会不会是因为图片模式问题呢？测试一下：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="n">img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s">&#39;/Users/luo/p.png&#39;</span><span class="p">)</span>
+</span><span class='line'><span class="n">img</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>在这个时候图片就已经被奇怪的变化了 ＃＃
+后来多次尝试发现在 img.save() 时指定format=&#8217;PNG&#8217;时效果正常，于是另加上了mode判断：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="k">if</span> <span class="n">img</span><span class="o">.</span><span class="n">mode</span> <span class="o">!=</span> <span class="s">&#39;RGBA&#39;</span><span class="p">:</span>
+</span><span class='line'>    <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">convert</span><span class="p">(</span><span class="s">&#39;RGBA&#39;</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">img_format</span> <span class="o">=</span> <span class="s">&#39;JPEG&#39;</span>
+</span><span class='line'><span class="k">else</span><span class="p">:</span>
+</span><span class='line'>    <span class="n">img_format</span> <span class="o">=</span> <span class="s">&#39;PNG&#39;</span>
+</span><span class='line'><span class="n">img</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">new_img</span><span class="p">,</span> <span class="n">img_format</span><span class="p">,</span> <span class="n">quality</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>本地环境测试ok，然后代码提交～
+完整代码：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+<span class='line-number'>43</span>
+<span class='line-number'>44</span>
+<span class='line-number'>45</span>
+<span class='line-number'>46</span>
+<span class='line-number'>47</span>
+<span class='line-number'>48</span>
+<span class='line-number'>49</span>
+<span class='line-number'>50</span>
+<span class='line-number'>51</span>
+<span class='line-number'>52</span>
+<span class='line-number'>53</span>
+<span class='line-number'>54</span>
+<span class='line-number'>55</span>
+<span class='line-number'>56</span>
+<span class='line-number'>57</span>
+<span class='line-number'>58</span>
+<span class='line-number'>59</span>
+<span class='line-number'>60</span>
+<span class='line-number'>61</span>
+<span class='line-number'>62</span>
+<span class='line-number'>63</span>
+<span class='line-number'>64</span>
+<span class='line-number'>65</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="kn">from</span> <span class="nn">cStringIO</span> <span class="kn">import</span> <span class="n">StringIO</span>
+</span><span class='line'><span class="kn">import</span> <span class="nn">Image</span><span class="o">,</span> <span class="nn">ImageEnhance</span>
+</span><span class='line'><span class="n">LEFT_TOP</span>     <span class="o">=</span> <span class="s">&#39;lt&#39;</span>
+</span><span class='line'><span class="n">LEFT_BOTTOM</span>  <span class="o">=</span> <span class="s">&#39;lb&#39;</span>
+</span><span class='line'><span class="n">RIGHT_TOP</span>    <span class="o">=</span> <span class="s">&#39;rt&#39;</span>
+</span><span class='line'><span class="n">RIGHT_BOTTOM</span> <span class="o">=</span> <span class="s">&#39;rb&#39;</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">WIDTH_GRID</span> <span class="o">=</span> <span class="mf">30.0</span>
+</span><span class='line'><span class="n">HIGHT_GRID</span> <span class="o">=</span> <span class="mf">30.0</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">def</span> <span class="nf">mark_layout</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">mark</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="n">RIGHT_BOTTOM</span><span class="p">):</span>
+</span><span class='line'>    <span class="n">im_width</span><span class="p">,</span> <span class="n">im_hight</span>     <span class="o">=</span> <span class="n">im</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">im</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+</span><span class='line'>    <span class="n">mark_width</span><span class="p">,</span> <span class="n">mark_hight</span> <span class="o">=</span> <span class="n">mark</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">mark</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">coordinates</span> <span class="o">=</span> <span class="p">{</span> <span class="n">LEFT_TOP</span><span class="p">:</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">im_width</span><span class="o">/</span><span class="n">WIDTH_GRID</span><span class="p">),</span><span class="nb">int</span><span class="p">(</span><span class="n">im_hight</span><span class="o">/</span><span class="n">HIGHT_GRID</span><span class="p">)),</span>
+</span><span class='line'>                    <span class="n">LEFT_BOTTOM</span><span class="p">:</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">im_width</span><span class="o">/</span><span class="n">WIDTH_GRID</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">im_hight</span> <span class="o">-</span> <span class="n">mark_hight</span> <span class="o">-</span> <span class="n">im_hight</span><span class="o">/</span><span class="n">HIGHT_GRID</span><span class="p">)),</span>
+</span><span class='line'>                    <span class="n">RIGHT_TOP</span><span class="p">:</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">im_width</span> <span class="o">-</span> <span class="n">mark_width</span> <span class="o">-</span> <span class="n">im_width</span><span class="o">/</span><span class="n">WIDTH_GRID</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">im_hight</span><span class="o">/</span><span class="n">HIGHT_GRID</span><span class="p">)),</span>
+</span><span class='line'>                    <span class="n">RIGHT_BOTTOM</span><span class="p">:</span> <span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">im_width</span> <span class="o">-</span> <span class="n">mark_width</span> <span class="o">-</span> <span class="n">im_width</span><span class="o">/</span><span class="n">WIDTH_GRID</span><span class="p">),</span> \
+</span><span class='line'>                    <span class="nb">int</span><span class="p">(</span><span class="n">im_hight</span> <span class="o">-</span> <span class="n">mark_hight</span> <span class="o">-</span> <span class="n">im_hight</span><span class="o">/</span><span class="n">HIGHT_GRID</span><span class="p">)),</span>
+</span><span class='line'>                  <span class="p">}</span>
+</span><span class='line'>    <span class="k">return</span> <span class="n">coordinates</span><span class="p">[</span><span class="n">layout</span><span class="p">]</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">def</span> <span class="nf">reduce_opacity</span><span class="p">(</span><span class="n">mark</span><span class="p">,</span> <span class="n">opacity</span><span class="p">):</span>
+</span><span class='line'>    <span class="k">assert</span> <span class="n">opacity</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">opacity</span> <span class="o">&lt;=</span> <span class="mi">1</span>
+</span><span class='line'>    <span class="n">mark</span>  <span class="o">=</span> <span class="n">mark</span><span class="o">.</span><span class="n">convert</span><span class="p">(</span><span class="s">&#39;RGBA&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">mark</span><span class="o">.</span><span class="n">mode</span> <span class="o">!=</span> <span class="s">&#39;RGBA&#39;</span> <span class="k">else</span> <span class="n">mark</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+</span><span class='line'>    <span class="n">alpha</span> <span class="o">=</span> <span class="n">mark</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">3</span><span class="p">]</span>
+</span><span class='line'>    <span class="n">alpha</span> <span class="o">=</span> <span class="n">ImageEnhance</span><span class="o">.</span><span class="n">Brightness</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span><span class="o">.</span><span class="n">enhance</span><span class="p">(</span><span class="n">opacity</span><span class="p">)</span>
+</span><span class='line'>    <span class="n">mark</span><span class="o">.</span><span class="n">putalpha</span><span class="p">(</span><span class="n">alpha</span><span class="p">)</span>
+</span><span class='line'>    <span class="k">return</span> <span class="n">mark</span>
+</span><span class='line'>
+</span><span class='line'><span class="k">def</span> <span class="nf">water_mark</span><span class="p">(</span><span class="n">img_data</span><span class="p">,</span> <span class="n">opacity</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+</span><span class='line'>    <span class="n">img</span>  <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">StringIO</span><span class="p">(</span><span class="n">img_data</span><span class="p">))</span>
+</span><span class='line'>    <span class="n">mark</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s">&#39;/mark/path&#39;</span><span class="p">)</span> <span class="c"># 水印文件可以使用指定路径</span>
+</span><span class='line'>    <span class="c">#mark = fs.get(mark_url)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="ow">not</span> <span class="n">mark</span><span class="p">:</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">img_data</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">mark</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">StringIO</span><span class="p">(</span><span class="n">mark</span><span class="p">))</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="n">opacity</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+</span><span class='line'>        <span class="n">mark</span> <span class="o">=</span> <span class="n">reduce_opacity</span><span class="p">(</span><span class="n">mark</span><span class="p">,</span> <span class="n">opacity</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="n">img</span><span class="o">.</span><span class="n">mode</span> <span class="o">!=</span> <span class="s">&#39;RGBA&#39;</span><span class="p">:</span>
+</span><span class='line'>        <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">convert</span><span class="p">(</span><span class="s">&#39;RGBA&#39;</span><span class="p">)</span>
+</span><span class='line'>        <span class="n">img_format</span> <span class="o">=</span> <span class="s">&#39;JPEG&#39;</span>
+</span><span class='line'>    <span class="k">else</span><span class="p">:</span>
+</span><span class='line'>        <span class="n">img_format</span> <span class="o">=</span> <span class="s">&#39;PNG&#39;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="c"># 指定上传图片最大宽度580和高宽600，如超过进行resize</span>
+</span><span class='line'>    <span class="k">if</span> <span class="n">img</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">580</span><span class="p">:</span>
+</span><span class='line'>        <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">resize</span><span class="p">((</span><span class="mi">580</span><span class="p">,</span> <span class="n">img</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="mf">580.0</span><span class="p">)),</span> <span class="n">resample</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">if</span> <span class="n">img</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">600</span><span class="p">:</span>
+</span><span class='line'>        <span class="n">img</span> <span class="o">=</span> <span class="n">img</span><span class="o">.</span><span class="n">resize</span><span class="p">((</span><span class="n">img</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">/</span><span class="p">(</span><span class="n">img</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">/</span><span class="mf">600.0</span><span class="p">),</span><span class="mi">600</span><span class="p">),</span> <span class="n">resample</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">layer</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">new</span><span class="p">(</span><span class="s">&#39;RGBA&#39;</span><span class="p">,</span> <span class="n">img</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">))</span>
+</span><span class='line'>    <span class="n">layer</span><span class="o">.</span><span class="n">paste</span><span class="p">(</span><span class="n">mark</span><span class="p">,</span> <span class="n">mark_layout</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">mark</span><span class="p">,</span> <span class="n">layout</span><span class="p">))</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">composite</span><span class="p">(</span><span class="n">layer</span><span class="p">,</span> <span class="n">img</span><span class="p">,</span> <span class="n">layer</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="n">new_img</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
+</span><span class='line'>    <span class="n">img</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">new_img</span><span class="p">,</span> <span class="n">img_format</span><span class="p">,</span> <span class="n">quality</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="k">return</span> <span class="n">new_img</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span>
+</span></code></pre></td></tr></table></div></figure>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[bash ctrl/alt 组合快捷键]]></title>
+    <link href="http://liluo.org/blog/2011/06/bash-shortcut-key/"/>
+    <updated>2011-06-03T22:40:00+08:00</updated>
+    <id>http://liluo.org/blog/2011/06/bash-shortcut-key</id>
+    <content type="html"><![CDATA[<p>Ctrl/Alt 有很多实用的组合快捷键，Mark.</p>
+
+<!-- more -->
+
+
+<h2>Ctrl</h2>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>ctrl-a/ctrl-e
+</span><span class='line'>移动光标到行首/行尾,同Home/End 键
+</span><span class='line'>ctrl-b/ctrl-f
+</span><span class='line'>后移/前移 一个字符。
+</span><span class='line'>ctrl-c
+</span><span class='line'>杀死当前进程。
+</span><span class='line'>ctrl-d
+</span><span class='line'>杀死当前 Shell。
+</span><span class='line'>ctrl-h
+</span><span class='line'>删除左边一个字符, 同 Backspace 键
+</span><span class='line'>ctrl-l
+</span><span class='line'>清屏, 同 clear
+</span><span class='line'>ctrl-r/ctrl-R
+</span><span class='line'>从之前键入过的历史命令中搜索
+</span><span class='line'>ctrl-u/ctrl-k
+</span><span class='line'>删除光标前/光标后的所有字符
+</span><span class='line'>ctrl-xx
+</span><span class='line'>让光标在当前位置和行尾切换
+</span><span class='line'>ctrl-y
+</span><span class='line'>撤消前一次删除
+</span><span class='line'>ctrl-z
+</span><span class='line'>挂起当前进程,之后可以使用 <span class="nb">fg</span> 命令唤醒
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Alt</h2>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>Alt-&lt; Alt-&gt;
+</span><span class='line'>在输入历史中的 最头/最尾 命令。
+</span><span class='line'>Alt-?
+</span><span class='line'>显示当前的补全列表。
+</span><span class='line'>Alt-*
+</span><span class='line'>插入所有可能的补全。
+</span><span class='line'>Alt-/
+</span><span class='line'><span class="o">(</span>无用<span class="o">)</span>
+</span><span class='line'>Alt-。
+</span><span class='line'>把前面的命令行参数插入到当前位置。
+</span><span class='line'>Alt-b /Alt-f
+</span><span class='line'>后移/前移 一个单词
+</span><span class='line'>Alt-c
+</span><span class='line'>把当前字符改成首字母大写, 同时光标移到词尾
+</span><span class='line'>Alt-d
+</span><span class='line'>删除当前位置到词尾的字符
+</span><span class='line'>Alt-l/Alt-u
+</span><span class='line'>把当前单词变成全 小写/大写, 同时光标移到词尾。
+</span><span class='line'>Alt-n /Alt-p
+</span><span class='line'>在搜索历史中搜索
+</span><span class='line'>Alt-r
+</span><span class='line'>删除全部键入的内容。
+</span><span class='line'>Alt-t
+</span><span class='line'>光标前两个单词的位置互换, 并将光标移到词尾
+</span><span class='line'>Alt-Backspace
+</span><span class='line'>删除光标前一个单词, 同 Ctrl-w 一样
+</span></code></pre></td></tr></table></div></figure>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[curl 简单作弊条]]></title>
+    <link href="http://liluo.org/blog/2011/05/curl-example/"/>
+    <updated>2011-05-26T22:26:00+08:00</updated>
+    <id>http://liluo.org/blog/2011/05/curl-example</id>
+    <content type="html"><![CDATA[<p>curl 是一款命令行多协议支持的服务器访问工具,可以用它来访问HTTP服务器，就像浏览器一样（当然了，它也是可以通过FTP下载或上传文件）。</p>
+
+<!-- more -->
+
+
+<h3>基本应用</h3>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>curl http://www.douban.com
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>上面的命令会在屏幕上输出服务器的响应信息，需要headers信息加 -i/&#8211;include 参数，只需要headers信息可以使用 -I/&#8211;head。</p>
+
+<p>重定向输出：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>curl http://www.douban.com &gt; response.html
+</span><span class='line'>curl http://www.douban.com | grep <span class="s1">&#39;douban.com&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>如果使用管道，默认会有一个进程信息显示出来，可以使用 -s/&#8211;silent 来不显示它们：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>curl -s http://www.douban.com | grep <span class="s1">&#39;douban.com&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>如果想保存服务器返回的内容的话，除了使用 > 重定向到一个文件外，还可以使用 -o/&#8211;output 参数指定需要保存到的文件：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>curl http://www.douban.com -o response.html
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>非文本文件也能这样保存：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>curl http://img3.douban.com/pics/nav/lg_main_a7.png -o logo.png
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>原名保存使用 -O/&#8211;remote-name 选项：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>curl http://img3.douban.com/pics/nav/lg_main_a7.png -O
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>不过豆瓣的图片有简单的防盗链，所以可能下载不成功 : ( 继续往下看</p>
+
+<h3>发送数据</h3>
+
+<p>GET 方法的请求没什么特殊的，直接在 url 中放上数据就可以了：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>curl http://www.douban.com/?name<span class="o">=</span>luo
+</span><span class='line'>curl http://www.douban.com/?name<span class="o">=</span>小落
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>POST 方法的话就需要使用 -d/&#8211;data 参数，只要有这个参数，即使值是空字符串，那么出去的就是 POST 方法的访问：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>curl -d <span class="s1">&#39;name=luoluo&amp;passwd=*****&#39;</span> http://www.douban.com
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>将文件以二进制流数据 POST</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>curl -F <span class="nv">image</span><span class="o">=</span>@/Users/luo/img1.jpg http://localhost:4567
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>头部信息</h3>
+
+<p>先说最常构造的两个 User-Agent 和 Referer ，这两个分别使用 -A/&#8211;user-agent 和 -e/&#8211;referer 来指定：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>curl -A Chrome http://www.douban.com
+</span><span class='line'>curl -e http://liluo.org http://www.douban.com
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>包含这两个头部信息，所有的头部信息参数都可以使用 -H/&#8211;header 来设置：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>curl -H Referer:http://liluo.org http://www.douban.com
+</span><span class='line'>curl -H User-Agent:Chrome -H Accept-Language:zh-cn http://www.douban.com
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>COOKIE控制</h3>
+
+<p>curl 是可以支持带 cookie 的交互行为的。使用方式是 -D/&#8211;dump-header 用于指定一个文件保存获取到的 cookie 信息（实际上包含了整个头部信息）， 然后用 -b/&#8211;cookie 指定一文件用于读取保存的 cookie 。</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>curl http://www.douban.com -D cookie.txt
+</span><span class='line'>curl http://www.douban.com -b cookie.txx
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>-D 保存出来的头部信息就是以纯文本形式存放的，所以，你可以方便地随便修改。</p>
+
+<h3>代理和通配符</h3>
+
+<h4>代理设置</h4>
+
+<p>使用 -x/&#8211;proxy 参数：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>curl -x http://web.proxy.url http://www.douban.com
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>通配符</h4>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>curl -O http://www.douban.com/~liluo/screen<span class="o">[</span>1-10<span class="o">]</span>.jpg
+</span><span class='line'>curl -O http://www.douban.com/~<span class="o">{</span>liluo,luoluo<span class="o">}</span>/<span class="o">[</span>001-201<span class="o">]</span>.jpg
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h4>反向引用分组</h4>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>curl -o <span class="c">#2_#1.jpg http://www.douban.com/~{liluo,luo}/[001-201].jpg</span>
+</span></code></pre></td></tr></table></div></figure>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[SSH automatic login(免密码)]]></title>
+    <link href="http://liluo.org/blog/2011/05/ssh-automatic-login/"/>
+    <updated>2011-05-09T22:13:00+08:00</updated>
+    <id>http://liluo.org/blog/2011/05/ssh-automatic-login</id>
+    <content type="html"><![CDATA[<p>其实我觉得每次使用SSH时输入用户名和密码也没什么不好，但是却被同事各种无情的鄙视。 T T</p>
+
+<h3>创建公钥</h3>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>ssh-keygen -t rsa
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>无视它出来的任何提示，欢快的一路回车到底吧~</p>
+
+<!-- more -->
+
+
+<h3>把公钥复制到远程主机</h3>
+
+<p>把公钥id_rsa.pub复制到远程机器的 /home/username/.ssh目录并命名为authorized_keys</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="c"># 方法1, os x 可以通过 `brew install ssh-copy-id` 安装 ssh-copy-id</span>
+</span><span class='line'>ssh-copy-id user@host;
+</span><span class='line'>
+</span><span class='line'><span class="c"># 方法2</span>
+</span><span class='line'>cat ~/.ssh/id_rsa.pub | ssh user@host <span class="s2">&quot;mkdir ~/.ssh; cat &gt;&gt; ~/.ssh/authorized_keys&quot;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>
+多台远程主机就多次复制～ 如果你本机登陆用户和远程登陆用户一致的话，就可以直接 ssh hostname 直接登陆，下面就不用看了。</p>
+
+<h3>解决本地登陆用户与远程登陆用户不一致</h3>
+
+<p>好吧，这事很纠结，虽然不用输入密码了，但是还得 ssh username@hostname 来登陆，很不爽，你懂的。 其实解决也很简单（but是同事告诉我的，老脸一红），修改本地登陆用户的 ~/.ssh/config 文件，如果木有的话就自个儿建一个吧，内容如下：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>Host theoden
+</span><span class='line'>    user liluo
+</span><span class='line'>Host fili
+</span><span class='line'>    user liluo
+</span><span class='line'>Host hostname
+</span><span class='line'>    user name
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>这样，本地和远程登陆用户名不一致也可以 ssh hostname 登陆了。</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Linux 安装 MongoDB及简单入门]]></title>
+    <link href="http://liluo.org/blog/2011/03/linux-install-mongodb/"/>
+    <updated>2011-03-29T22:02:00+08:00</updated>
+    <id>http://liluo.org/blog/2011/03/linux-install-mongodb</id>
+    <content type="html"><![CDATA[<p>MongoDB是一个使用由C++编写的基于分布式文件存储的数据库开源项目，旨在为WEB应用提供可护展的高性能数据存储解决方案。</p>
+
+<p>下面说下安装方法以及简单入门知识。</p>
+
+<!-- more -->
+
+
+<h2>下载</h2>
+
+<p>到官网 <a href="http://mongodb.org">http://mongodb.org</a> 去下载最新的稳定版本，目前是 mongodb-linux-i686-1.8.0.tgz</p>
+
+<h2>解压</h2>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>mv mongodb-linux-i686-1.8.0.tgz /usr/local/
+</span><span class='line'><span class="nb">cd</span> /usr/local
+</span><span class='line'>tar xvf mongodb-linux-i686-1.8.0.tgz
+</span><span class='line'>mv mongodb-linux-i686-1.8.0 mondodb
+</span><span class='line'>rm -y mongodb-linux-i686-1.8.0.tgz
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>运行</h2>
+
+<p>需要创建一个存放数据的目录(默认是/data/db/)，创建目录并启动：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>mkdir -p /data/db/
+</span><span class='line'>/usr/local/mongodb/bin/mongod
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>如果想使用自己指定的目录来存储数据，加上&#8211;dbpath选项：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>/usr/local/mongodb/bin/mongod --dbpath /path/to/data/dir
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>常用参数说明</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>--port: 指定端口，默认 27017
+</span><span class='line'>--dbpath: 指定数据目录，默认 /data/db
+</span><span class='line'>--logpath: 指定日志如初路径，如果不指定的话，则将日志输出到命令行。
+</span><span class='line'>--logappend: 创建日志时，会将原有文件覆盖，使用这个选项可以追加写日志。
+</span><span class='line'>--fork: 以守护进程的方式运行MongoDB
+</span><span class='line'>--rest: 启用MongoDB REST API，可以用默认端口 +1000 来管理数据库。
+</span><span class='line'>--config: 指定配置文件
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>使用JavaScript Shell工具</h2>
+
+<p>默认链接的是test数据库</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>/usr/local/mongodb/bin/mongo
+</span><span class='line'>MongoDB shell version: 1.8.0
+</span><span class='line'>connecting to: <span class="nb">test</span>
+</span><span class='line'>&gt;
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>MongoDB 手册</h2>
+
+<p><a href="http://www.mongodb.org/display/DOCS/Manual">http://www.mongodb.org/display/DOCS/Manual</a></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Memcached 安装/使用(Python操作)]]></title>
+    <link href="http://liluo.org/blog/2011/03/memcached-install-and-using/"/>
+    <updated>2011-03-14T21:42:00+08:00</updated>
+    <id>http://liluo.org/blog/2011/03/memcached-install-and-using</id>
+    <content type="html"><![CDATA[<p>Memcached官网 <a href="http://memcached.org">http://memcached.org</a></p>
+
+<h2>简单介绍</h2>
+
+<p>Memcached很强大，它可以支持分布式的共享内存缓存，大型站点都用它。对小站点来说，有足够内存的话，使用它也可以得到超赞的效果。</p>
+
+<h2>使用目的</h2>
+
+<p>由前面的介绍看到，大家使用它都是为了速度，不过我却是为了解决Session在不同浏览器中偶尔丢失的数据。其实也不能怪浏览器啦，主要是我需要一个dict类型的session。</p>
+
+<!-- more -->
+
+
+<h2>安装</h2>
+
+<h3>Linux</h3>
+
+<p>安装</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="c"># Debian/Ubuntu</span>
+</span><span class='line'>sudo apt-get install memcached
+</span><span class='line'>
+</span><span class='line'><span class="c"># Redhat/Fedora/CentOS</span>
+</span><span class='line'>sudo yum install memcached
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>启动Memcached</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>-d 选项是启动一个守护进程
+</span><span class='line'>-m 是分配给Memcache使用的内存数量，单位是MB，默认64MB
+</span><span class='line'>-M <span class="k">return </span>error on memory exhausted <span class="o">(</span>rather than removing items<span class="o">)</span>
+</span><span class='line'>-u 是运行Memcache的用户，如果当前为root 的话，需要使用此参数指定用户
+</span><span class='line'>-l 是监听的服务器IP地址，默认为所有网卡
+</span><span class='line'>-p 是设置Memcache的TCP监听的端口，最好是1024以上的端口
+</span><span class='line'>-c 选项是最大运行的并发连接数，默认是1024
+</span><span class='line'>-P 是设置保存Memcache的pid文件
+</span><span class='line'>-f chunk size growth factor <span class="o">(</span>default: 1.25<span class="o">)</span>
+</span><span class='line'>-I Override the size of each slab page. Adjusts max item size<span class="o">(</span>1.4.2版本新增<span class="o">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>例子</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>/usr/local/memcached/bin/memcached -d -m 100 -c 1000 -u root -p 11211
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>可以启动多个守护进程，但是端口不能重复。 设置开机启动的话可以将上行命令增加到/etc/rc.d/rc.local文件中。</p>
+
+<h3>Windows</h3>
+
+<ol>
+<li>下载memcache的windows稳定版 <a href="http://splinedancer.com/memcached-win32/">http://splinedancer.com/memcached-win32/</a></li>
+<li>解压放某个盘下面，比如在c:\memcached</li>
+<li>在终端（也即cmd命令界面）cd到解压目录（这里是c:\memcached），运行 memcached.exe -d install 安装服务</li>
+<li>运行memcached.exe -d start，memcached会使用默认的端口(11211)来启动，你可以在任务管理器中看到memcached.exe</li>
+</ol>
+
+
+<h2>Python 操作 Memcached</h2>
+
+<p>memcached API地址 http://code.google.com/p/memcached/wiki/Clients</p>
+
+<p>网上流传说Python-API中效率最高的是python-libmemcached，这里居然看到了hongqn（豆瓣首席架构师，后来也得到证实python-libmemcached是豆瓣贡献，看来豆瓣的阳光真的是撒满了Python的各个角落）。</p>
+
+<p>另外还有python-memcached（100%纯Python），python-memcache（据说有内存泄漏问题？），cmemcache（代码多年未更新？）。</p>
+
+<p>不过由于目前需要中效率并没有太高要求，于是选择了使用最多的python-memcached：
+安装 python-memcached</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>sudo easy_install python-memcached
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Python操作memcached</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="kn">import</span> <span class="nn">memcache</span>
+</span><span class='line'><span class="n">mc</span> <span class="o">=</span> <span class="n">memcache</span><span class="o">.</span><span class="n">Client</span><span class="p">([</span><span class="s">&#39;127.0.0.1:11211&#39;</span><span class="p">],</span><span class="n">debug</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</span><span class='line'><span class="n">mc</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&#39;name&#39;</span><span class="p">,</span><span class="s">&#39;luo&#39;</span><span class="p">,</span><span class="mi">60</span><span class="p">)</span>
+</span><span class='line'><span class="k">print</span> <span class="n">mc</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;name&#39;</span><span class="p">)</span>
+</span><span class='line'><span class="n">mc</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s">&#39;name&#39;</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Memcached常用方法</h2>
+
+<p>memcache其实是一个map结构，最常用的几个函数：</p>
+
+<p>保存数据</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">set</span><span class="o">(</span>key,value,timeout<span class="o">)</span> 把key映射到value，timeout指的是什么时候这个映射失效
+</span><span class='line'>add<span class="o">(</span>key,value,timeout<span class="o">)</span>  仅当存储空间中不存在键相同的数据时才保存
+</span><span class='line'>replace<span class="o">(</span>key,value,timeout<span class="o">)</span> 仅当存储空间中存在键相同的数据时才保存
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>获取数据</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>get<span class="o">(</span>key<span class="o">)</span> 返回key所指向的value
+</span><span class='line'>get_multi<span class="o">(</span>key1,key2,key3,key4<span class="o">)</span> 可以非同步地同时取得多个键值， 比循环调用get快数十倍
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>删除数据</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>delete<span class="o">(</span>key, timeout<span class="o">)</span> 删除键为key的数据，timeout为时间值，禁止在timeout时间内名为key的键保存新数据（set函数无效）。
+</span></code></pre></td></tr></table></div></figure>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Python 使用 xlrd/xlwt 操作 Excel]]></title>
+    <link href="http://liluo.org/blog/2011/01/python-using-xlrd-xlwt-operate-excel/"/>
+    <updated>2011-01-07T21:16:00+08:00</updated>
+    <id>http://liluo.org/blog/2011/01/python-using-xlrd-xlwt-operate-excel</id>
+    <content type="html"><![CDATA[<p>Python 处理 Excel，可以使用 xlrd/xlwt 2个模块，使用简单特好上手。</p>
+
+<!-- more -->
+
+
+<h2>xlrd</h2>
+
+<p>安装</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="n">sudo</span> <span class="n">easy_install</span> <span class="n">xlrd</span> <span class="c"># windows 参考http://pypi.python.org/pypi/xlrd</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>简单使用</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="kn">import</span> <span class="nn">xlrd</span>
+</span><span class='line'><span class="n">data</span> <span class="o">=</span> <span class="n">xlrd</span><span class="o">.</span><span class="n">open_workbook</span><span class="p">(</span><span class="s">&#39;demo.xls&#39;</span><span class="p">)</span> <span class="c"># 打开demo.xls</span>
+</span><span class='line'><span class="n">data</span><span class="o">.</span><span class="n">sheet_names</span><span class="p">()</span>        <span class="c"># 获取xls文件中所有sheet的名称</span>
+</span><span class='line'><span class="n">table</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">sheets</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>  <span class="c"># 获取xls文件第一个工作表</span>
+</span><span class='line'><span class="n">table</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">sheet_by_index</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>        <span class="c"># 通过索引获取xls文件第0个sheet</span>
+</span><span class='line'><span class="n">table</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">sheet_by_name</span><span class="p">(</span><span class="s">u&#39;Sheet1&#39;</span><span class="p">)</span> <span class="c"># 通过工作表名获取 sheet</span>
+</span><span class='line'><span class="c"># 获取行数和列数</span>
+</span><span class='line'><span class="n">nrows</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">nrows</span>
+</span><span class='line'><span class="n">ncols</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">ncols</span>
+</span><span class='line'><span class="c"># 获取整行和整列的值（数组）</span>
+</span><span class='line'><span class="n">table</span><span class="o">.</span><span class="n">row_values</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+</span><span class='line'><span class="n">table</span><span class="o">.</span><span class="n">col_values</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+</span><span class='line'><span class="c"># 循环行,得到索引的列表</span>
+</span><span class='line'><span class="k">for</span> <span class="n">rownum</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">nrows</span><span class="p">):</span>
+</span><span class='line'>    <span class="k">print</span> <span class="n">table</span><span class="o">.</span><span class="n">row_values</span><span class="p">(</span><span class="n">rownum</span><span class="p">)</span>
+</span><span class='line'><span class="c"># 获取单元格</span>
+</span><span class='line'><span class="n">cell_A1</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">value</span>
+</span><span class='line'><span class="n">cell_C4</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">value</span>
+</span><span class='line'><span class="c"># 分别使用行列索引</span>
+</span><span class='line'><span class="n">cell_A1</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">row</span><span class="p">(</span><span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">value</span>
+</span><span class='line'><span class="n">cell_A2</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">value</span>
+</span><span class='line'><span class="c"># 简单的写入</span>
+</span><span class='line'><span class="n">row</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span class='line'><span class="n">col</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span class='line'><span class="n">ctype</span> <span class="o">=</span> <span class="mi">1</span> <span class="c"># 类型 0 empty,1 string, 2 number, 3 date, 4 boolean, 5 error</span>
+</span><span class='line'><span class="n">value</span> <span class="o">=</span> <span class="s">&#39;liluo&#39;</span>
+</span><span class='line'><span class="n">xf</span> <span class="o">=</span> <span class="mi">0</span> <span class="c"># 扩展的格式化 (默认是0)</span>
+</span><span class='line'><span class="n">table</span><span class="o">.</span><span class="n">put_cell</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">,</span> <span class="n">ctype</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">xf</span><span class="p">)</span>
+</span><span class='line'><span class="n">table</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span> <span class="c"># 文本:u&#39;lixiaoluo&#39;</span>
+</span><span class='line'><span class="n">table</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">value</span> <span class="c"># &#39;lixiaoluo&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>xlwt</h2>
+
+<p>安装</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="n">sudo</span> <span class="n">easy_install</span> <span class="n">xlwt</span>  <span class="c"># windows 参考http://pypi.python.org/pypi/xlwt</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>简单使用</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="kn">import</span> <span class="nn">xlwt</span>
+</span><span class='line'><span class="nb">file</span> <span class="o">=</span> <span class="n">xlwt</span><span class="o">.</span><span class="n">Workbook</span><span class="p">()</span>                <span class="c"># 注意这里的Workbook首字母是大写</span>
+</span><span class='line'><span class="n">table</span> <span class="o">=</span> <span class="nb">file</span><span class="o">.</span><span class="n">add_sheet</span><span class="p">(</span><span class="s">&#39;sheet name&#39;</span><span class="p">)</span>  <span class="c"># 新建一个sheet</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">table</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="s">&#39;test&#39;</span><span class="p">)</span>               <span class="c"># 写入数据table.write(行,列,value)</span>
+</span><span class='line'>
+</span><span class='line'><span class="c"># 如果对一个单元格重复操作，会引发</span>
+</span><span class='line'><span class="c"># returns error:</span>
+</span><span class='line'><span class="c"># Exception: Attempt to overwrite cell:</span>
+</span><span class='line'><span class="c"># sheetname=u&#39;sheet 1&#39; rowx=0 colx=0</span>
+</span><span class='line'><span class="c"># 所以在打开时加cell_overwrite_ok=True解决</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">table</span> <span class="o">=</span> <span class="nb">file</span><span class="o">.</span><span class="n">add_sheet</span><span class="p">(</span><span class="s">&#39;sheet name&#39;</span><span class="p">,</span><span class="n">cell_overwrite_ok</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</span><span class='line'><span class="nb">file</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s">&#39;demo.xls&#39;</span><span class="p">)</span>     <span class="c"># 保存文件</span>
+</span><span class='line'>
+</span><span class='line'><span class="c"># 另外，使用style</span>
+</span><span class='line'><span class="n">style</span> <span class="o">=</span> <span class="n">xlwt</span><span class="o">.</span><span class="n">XFStyle</span><span class="p">()</span>    <span class="c"># 初始化样式</span>
+</span><span class='line'><span class="n">font</span> <span class="o">=</span> <span class="n">xlwt</span><span class="o">.</span><span class="n">Font</span><span class="p">()</span>        <span class="c"># 为样式创建字体</span>
+</span><span class='line'><span class="n">font</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s">&#39;Times New Roman&#39;</span>
+</span><span class='line'><span class="n">font</span><span class="o">.</span><span class="n">bold</span> <span class="o">=</span> <span class="bp">True</span>
+</span><span class='line'><span class="n">style</span><span class="o">.</span><span class="n">font</span> <span class="o">=</span> <span class="n">font</span>         <span class="c">#为样式设置字体</span>
+</span><span class='line'><span class="n">table</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&#39;some bold Times text&#39;</span><span class="p">,</span> <span class="n">style</span><span class="p">)</span> <span class="c"># 使用样式</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>xlwt 允许单元格或者整行地设置格式。还可以添加链接以及公式。
+例子： <a href="http://scienceoss.com/write-excel-files-with-python-using-xlwt/">http://scienceoss.com/write-excel-files-with-python-using-xlwt/</a></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Linux firewall iptables configuration(防火墙配置)]]></title>
+    <link href="http://liluo.org/blog/2010/08/linux-firewall-iptables-configuration/"/>
+    <updated>2010-08-25T20:25:00+08:00</updated>
+    <id>http://liluo.org/blog/2010/08/linux-firewall-iptables-configuration</id>
+    <content type="html"><![CDATA[<p>之前有讲过公司新买的服务器使用的是CentOS 5.5，部署好Tomcat之后却发现输入114.80.<em>.</em>:8080(即ip:8080)却无法显示Tomcat默认的首页。因为以前部署在Win Server的VPS，Linux开发时也只用到localhost，所以就有点头大。</p>
+
+<p>Google大神说这是防火墙问题，关闭防火墙:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>/etc/init.d/iptables stop
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>再次在浏览器里敲入&#8221;114.80.<em>.</em>:8080&#8221;发现果然成功。这样贸然关闭防火墙是绝对不可取的，正确的做法是在iptables中打开指定端口。了解一下Firewall iptabels：</p>
+
+<!-- more -->
+
+
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>/etc/init.d/iptables status   <span class="c"># 查看防火墙当前状态</span>
+</span><span class='line'>/etc/init.d/iptables start    <span class="c"># 开启防火墙</span>
+</span><span class='line'>/etc/init.d/iptables stop     <span class="c"># 关闭防火墙</span>
+</span><span class='line'>/etc/init.d/iptables save     <span class="c"># 保存防火墙规则更新</span>
+</span><span class='line'>/etc/init.d/iptables restart  <span class="c"># 重启防火墙</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>打开8080端口</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>/sbin/iptables -I INPUT -p tcp --dport 8080 -j ACCEPT
+</span><span class='line'>/etc/init.d/iptables save
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>另外一种打开端口的方式, 在 /etc/sysconfig/iptables 追加</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>-A RH-Firewall-1-INPUT -m state –state NEW -m tcp -p tcp –dport 8080 -j ACCEPT
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>重启防火墙，使新增的配置生效</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>/etc/init.d/iptables restart
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[将 CentOS 5.5 中 Python 更新到2.6.5]]></title>
+    <link href="http://liluo.org/blog/2010/08/centos-update-python-2-dot-6-5/"/>
+    <updated>2010-08-19T19:40:00+08:00</updated>
+    <id>http://liluo.org/blog/2010/08/centos-update-python-2-dot-6-5</id>
+    <content type="html"><![CDATA[<p>前天公司购买一台服务器(放置在外高桥电信机房，跑的是JSP的应用)，不想在服务器上使用盗版的Win server(当然也是为了公司节省软件许可费用)，于是安装了 CentOS 5.5(貌似是目前比较新的版本？)。BTW 它的 Python 居然是2.4.3的版本，阿门。</p>
+
+<p>于是的于是就有了下面给Python升级的过程(CentOS 5.5 中实验成功，其他发行版本Linux可作参考)。</p>
+
+<!-- more -->
+
+
+<p>下载</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>wget http://www.python.org/ftp/python/2.6.5/Python-2.6.5.tar.bz2
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>解压</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>tar jxvf Python-2.6.5.tar.bz2
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>编译安装</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">cd </span>Python-2.6.5
+</span><span class='line'>./configure
+</span><span class='line'>make <span class="o">&amp;&amp;</span> make install
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>检查</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>/usr/local/bin/python2.6 -V <span class="c"># Python 2.6.5</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>默认使用Python新版本</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>mv /usr/bin/python /usr/bin/python.bak
+</span><span class='line'>ln -s /usr/local/bin/python2.6 /usr/bin/python
+</span><span class='line'>python -V <span class="c"># Python 2.6.5</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>修复不 work 的yum</h3>
+
+<p>完成以上几步之后，如果使用 yum 命令的话会报错：</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>no module named yum
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>这是因为 yum 依赖 Python 2.4.3 而现在默认的 Python 版本是2.6.5。修复也很简单，将 /usr/bin/yum 文件的首行</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>!#/usr/bin/python
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>修改为</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>!#/usr/bin/python2.4
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Django 使用 TinyMCE 编辑器(包括admin后台)]]></title>
+    <link href="http://liluo.org/blog/2010/07/django-using-tinymce/"/>
+    <updated>2010-07-26T18:41:00+08:00</updated>
+    <id>http://liluo.org/blog/2010/07/django-using-tinymce</id>
+    <content type="html"><![CDATA[<p>其实无论是否Django开发的项目，我们往往需要添加一个在线编辑器。</p>
+
+<p>这里来简单的介绍下Django中使用TinyMCE在线编辑器的方法，在其他程序中使用或者使用其他编辑器也可作参考。</p>
+
+<!-- more -->
+
+
+<ul>
+<li><p>下载TinyMCE, 到 http://tinymce.moxiecode.com/ 官方主页去下载最新版本；</p></li>
+<li><p>将下载到的压缩包解压并放在指定目录(这里是 Django 项目的 static 目录)；</p></li>
+<li><p>在 tiny_mce 目录新建 textareas.js 文件，内容参考 <a href="http://tinymce.moxiecode.com/examples/full.php">http://tinymce.moxiecode.com/examples/full.php</a>，仅需用到第3~33行即可；</p></li>
+<li><p>配置 Django 静态资源的访问，可参考 <a href="http://liluo.org/blog/2010/05/django-static-files-js-css-images/">Django使用静态文件(JS, CSS, Images)配置</a></p></li>
+<li><p>在模板页面<head></head>之间加入</p></li>
+</ul>
+
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='html'><span class='line'><span class="nt">&lt;script </span><span class="na">type=</span><span class="s">&quot;text/javascript&quot;</span> <span class="na">src=</span><span class="s">&quot;/static/tiny_mce/tiny_mce.js&quot;</span><span class="nt">&gt;&lt;/script&gt;</span>
+</span><span class='line'><span class="nt">&lt;script </span><span class="na">type=</span><span class="s">&quot;text/javascript&quot;</span> <span class="na">src=</span><span class="s">&quot;/static/tiny_mce/textareas.js&quot;</span><span class="nt">&gt;&lt;/script&gt;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li>添加 Django admin 后台支持
+在 Python26/Lib/site-packages/django/contrib/admin/templates/admin/base.html 加入上面2行代码。</li>
+</ul>
+
+
+<h4>非Django项目在第3步之后在需要的页面引入tiny_mce.js、textareas.js即可。</h4>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Ubuntu 安装 PostgreSQL PgAdmin3]]></title>
+    <link href="http://liluo.org/blog/2010/07/ubuntu-install-postgresql-pgadmin3/"/>
+    <updated>2010-07-18T18:06:00+08:00</updated>
+    <id>http://liluo.org/blog/2010/07/ubuntu-install-postgresql-pgadmin3</id>
+    <content type="html"><![CDATA[<h3>安装 PostgreSQL</h3>
+
+<p>安装 PostgreSQL 和 命令行客户端 psql</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>luo@luo-ubuntu:~<span class="nv">$ </span>sudo apt-get install postgresql-8.4 postgresql-client-8.4 postgresql-contrib-8.4
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>修改 PostgreSQL 默认用户 postgres 密码</h3>
+
+<p>PostgreSQL数据默认会创建一个postgres的用户作为数据库的管理员，密码是随机的，这里需要修改为指定的密码，这里设定为&#8217;password&#8217;:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>luo@luo-ubuntu:~<span class="nv">$ </span>sudo -u postgres psql
+</span><span class='line'><span class="nv">postgres</span><span class="o">=</span><span class="c"># ALTER USER postgres WITH PASSWORD &#39;password&#39;;</span>
+</span><span class='line'><span class="nv">postgres</span><span class="o">=</span><span class="c"># \q</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<!-- more -->
+
+
+<h3>修改 Linux 系统 postgres 用户的密码</h3>
+
+<p>PostgreSQL 数据默认会创建一个 Linux 用户 postgres，我们要使 posgres 用户与数据库中 postgres 的密码保持一致:</p>
+
+<p>删除密码</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>luo@luo-ubuntu:~<span class="nv">$ </span>sudo passwd -d postgres
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>创建密码</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>luo@luo-ubuntu:~<span class="nv">$ </span>sudo -u postgres passwd
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>现在就可以用 postgres 账号通过 psql 或者 PgAdmin3 来操作数据库了。</p>
+
+<h3>修改PostgresSQL数据库配置实现远程访问</h3>
+
+<p>修改postgresql.conf的连接权限</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>luo@luo-ubuntu:~<span class="nv">$ </span>sudo vi /etc/postgresql/8.4/main/postgresql.conf
+</span><span class='line'>将 <span class="c">#listen_addresses = &#39;localhost&#39; 修改为 listen_addresses = &#39;*&#39;</span>
+</span><span class='line'>将 <span class="c">#password_encryption = on       修改为 password_encryption = on</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>修改pg_hba.conf的目的是设置用户操作数据服务器权限</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>luo@luo-ubuntu:~<span class="nv">$ </span>sudo vi /etc/postgresql/8.4/main/pg_hba.conf
+</span><span class='line'>追加以下2行
+</span><span class='line'><span class="c"># to allow your client visiting postgresql server</span>
+</span><span class='line'>host all all 0.0.0.0 0.0.0.0 md5
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>重启PostgreSQL数据库的服务程序，使配置生效</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>luo@luo-ubuntu:~<span class="nv">$ </span>sudo /etc/init.d/postgresql-8.4 restart
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>安装 PgAdmin3</h3>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>luo@luo-ubuntu:~<span class="nv">$ </span>sudo apt-get install pgadmin3
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>创建新用户和数据库</h3>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>luo@luo-ubuntu:~<span class="nv">$ </span>psql -U postgres -h 127.0.0.1
+</span><span class='line'><span class="nv">postgres</span><span class="o">=</span><span class="c"># create user &#39;liluo&#39; with password &#39;liluo&#39; nocreatedb;</span>
+</span><span class='line'><span class="nv">postgres</span><span class="o">=</span><span class="c"># create database &#39;new_database&#39; with owner=&#39;liluo&#39;;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>或者</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>luo@luo-ubuntu:~<span class="nv">$ </span>sudo -u postgres createuser -D -P liluo
+</span><span class='line'>luo@luo-ubuntu:~<span class="nv">$ </span>sudo -u postgres createdb -O liluo new_database
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><strong>EOF</strong></p>
+]]></content>
+  </entry>
+  
+</feed>

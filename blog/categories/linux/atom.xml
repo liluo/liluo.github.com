@@ -1,0 +1,469 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Linux | 落]]></title>
+  <link href="http://liluo.org/blog/categories/linux/atom.xml" rel="self"/>
+  <link href="http://liluo.org/"/>
+  <updated>2016-01-03T16:15:14+08:00</updated>
+  <id>http://liluo.org/</id>
+  <author>
+    <name><![CDATA[落]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Crontab 使用入门]]></title>
+    <link href="http://liluo.org/blog/2012/07/how-to-use-crontab/"/>
+    <updated>2012-07-02T00:22:00+08:00</updated>
+    <id>http://liluo.org/blog/2012/07/how-to-use-crontab</id>
+    <content type="html"><![CDATA[<p><em>半夜睡不着无聊更新下博客……</em></p>
+
+<h3>Crontab 简介</h3>
+
+<p>crontab命令常见于Unix和类Unix的操作系统之中，用于设置周期性被执行的指令。该命令从标准输入设备读取指令，并将其存放于“crontab”文件中，以供之后读取和执行。该词来源于希腊语 chronos(χρόνος)，原意是时间。通常，crontab储存的指令被守护进程激活， crond常常在后台运行，每一分钟检查是否有预定的作业需要执行。这类作业一般称为cron jobs。(引用 <a href="http://baike.baidu.com/view/1229061.htm" title="crontab">百度百科</a> )</p>
+
+<h3>Crontab 使用方法</h3>
+
+<p>man crontab 一下会发现有以下2种用法:
+``` bash
+crontab [-u user] file
+crontab [-u user] { -l | -r | -e }</p>
+
+<h1>其中 -u user 为可选项，当无 -u 项时为当前用户</h1>
+
+<p>```
+第1行用法，如果 file 文件存在，则将文件复制到 crontabs 目录；如 file 不存在则接受标准输入方式。</p>
+
+<p>第2行用法有3个选项：
+<code>bash
+-l 列出当前 crontab 配置(Display the current crontab on standard output)
+-r 删除当前 crontab 配置(Remove the current crontab)
+-e 编辑当前 crontab 配置(Edit the current crontab using the editor)
+</code></p>
+
+<!-- more -->
+
+
+<h3>Crontab 使用语法</h3>
+
+<p>Crontab 语法很简单，为 "周期 命令" 的形式，具体如下：
+<code>bash
+*  *  *  *  *  command to be executed
+┬  ┬  ┬  ┬  ┬
+│  │  │  │  │
+│  │  │  │  │
+│  │  │  │  └───── day of week (0 - 6) (0 is Sunday, or use names)
+│  │  │  └────────── month (1 - 12)
+│  │  └─────────────── day of month (1 - 31)
+│  └──────────────────── hour (0 - 23)
+└───────────────────────── min (0 - 59)
+</code>
+上面例子中 "*" 依次代表的是分、时、日、月、礼拜几，看一下周期时间的具体格式：</p>
+
+<p><code>bash
+Field name  Mandatory?  Allowed values  Allowed special characters
+Minutes       Yes         0-59               * / , -
+Hours         Yes         0-23               * / , -
+Day of month  Yes         1-31               * / , - ? L W
+Month         Yes         1-12 or JAN-DEC    * / , -
+Day of week   Yes         0-6 or SUN-SAT     * / , - ? L #
+Year          No          1970–2099          * / , -
+</code></p>
+
+<p>特殊符号说明：
+``` bash
+* cron表达式匹配的字段的所有值, 例如第4列用<em>表示每月
+/ 描述范围的增量, 如第1列使用 </em>/15 表示每15分钟执行一次
+, 表示是一个List，如第1列使用 10,20,30 表示在每小时的第10、20、30分钟执行
+- 定义范围，如第4列使用 1-5 表示在每年的1～5月执行
+? 只在日期和星期字段出现，表示无意义的值，相当于定位符
+L 只在日期和星期字段出现，如在日期字段表示当月最后一天，在星期字段则表示星期6（如果星期字段为4L则为最后当月最后一个星期5).
+W 只在日期字段出现，如 1W 表示离1号最近的工作日</p>
+
+<h1>只在星期字段出现，如 4#3 表示当月第3个星期5</h1>
+
+<p>```</p>
+
+<p>一些例子：
+<code>bash
+每年1月1日0点0分 0 0 1 1 *
+每月1日0点0分    0 0 1 * *
+每周日0点0分     0 0 * * 0
+每天0点0分       0 0 * * *
+每小时0分        0 * * * *
+</code></p>
+
+<h3>Tips</h3>
+
+<p><strong>command 标准输出发送 email</strong>
+``` bash
+30 7 * * * python test.py | mail -e -s "subject" xxxx@liluo.org</p>
+
+<h1>需配置好 send_mail</h1>
+
+<p>```</p>
+
+<p><strong>命令之后重定向</strong>
+``` bash
+command > file 把标准输出重定向到文件
+command >> file 把标准输出追加到文件</p>
+
+<p>command 1 > file 把标准输出重定向到文件
+command 2 > file 把标准错误重定向到文件
+command 2 >> file 把标准输出追加到文件
+command 2>&amp;1 把command命令标准错误重定向到标准输出
+command > file 2>&amp;1 把标准输出和标准错误一起重定向到文件
+command >> file 2>&amp;1 把标准输出和标准错误一起追加到文件</p>
+
+<p>command &lt; file 把command命令以file文件作为标准输入
+command &lt; file >file2 把command命令以file文件作为标准输入，以file2文件作为标准输出
+command &lt;&amp;- 关闭标准输入
+```
+<strong>EOF</strong></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[使用Python/Ruby/Bash Post 文件二进制流（stream）]]></title>
+    <link href="http://liluo.org/blog/2012/05/post-file-stream-with-linux-python-ruby-bash/"/>
+    <updated>2012-05-04T23:14:00+08:00</updated>
+    <id>http://liluo.org/blog/2012/05/post-file-stream-with-linux-python-ruby-bash</id>
+    <content type="html"><![CDATA[<p>之前经常使用Python的urllib, urllib2两个库写爬虫或者是向第三方接口post数据，很是清爽。今天有需求要把图片文件post到第三方接口，当我又祭出urllib+urllib2两大法宝时，结果很不意外的被洗刷刷了……</p>
+
+<p>被洗刷的感觉很不爽，需求是流氓，你弱它就强，所以一定要搞定它 XD</p>
+
+<p>各种搜罗和实践测试，最后得到了python\ruby\bash几个版本：</p>
+
+<!-- more -->
+
+
+<h2>Pyhton版1</h2>
+
+<p>使用第三方库poster, 安装：
+<code>bash
+easy_install poster
+</code></p>
+
+<p>代码:
+``` python
+from poster.encode import multipart_encode
+from poster.streaminghttp import register_openers
+import urllib2</p>
+
+<p>register_openers()</p>
+
+<p>datagen, headers = multipart_encode({</p>
+
+<pre><code>                 'image': open('/Users/luo/img1.jpg', 'rb')
+               })
+</code></pre>
+
+<p>request = urllib2.Request('http://localhost:4567/', datagen, headers)
+print urllib2.urlopen(request).read()
+```
+参考：<a href="http://atlee.ca/software/poster/index.html">http://atlee.ca/software/poster/index.html</a></p>
+
+<h2>Python版2</h2>
+
+<p>使用第三方库requests（同事 Tachikoma 推荐），安装：
+<code>bash
+easy_install requests
+或者
+pip install requests
+</code>
+代码：
+``` python
+import requests</p>
+
+<p>url = 'http://localhost:4567'
+files={'image': ('img1.jpg',open('/Users/luo/img1.jpg', 'rb'))}</p>
+
+<p>r = requests.post(url, files=files)
+```
+参考：<a href="http://docs.python-requests.org/en/latest/user/quickstart/">http://docs.python-requests.org/en/latest/user/quickstart/</a></p>
+
+<h2>Ruby版</h2>
+
+<p>使用gem包rest-client，安装：
+<code>bash
+gem install rest-client
+</code>
+代码：
+``` ruby
+require 'rest_client'
+RestClient.post('http://localhost:4567/',</p>
+
+<pre><code>            :image =&gt; File.new('/Users/luo/img1.jpg'))
+</code></pre>
+
+<p>```
+参考：<a href="https://github.com/adamwiggins/rest-client">https://github.com/adamwiggins/rest-client</a></p>
+
+<h2>Bash版</h2>
+
+<p>使用curl，安装：
+<code>bash
+不用讲了吧？
+</code>
+代码：
+<code>bash
+curl -F image=@/Users/luo/img1.jpg http://localhost:4567
+</code>
+参考：
+<code>bash
+man curl
+</code></p>
+
+<h3>测试的服务器端代码:</h3>
+
+<p><code>ruby
+require 'sinatra'
+post '/' do
+  data = params['image'][:tempfile].read
+  f = File.new('image1.jpg', 'w')
+  f.puts data
+  f.close
+  'ok'
+end
+</code></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[bash ctrl/alt 组合快捷键]]></title>
+    <link href="http://liluo.org/blog/2011/06/bash-shortcut-key/"/>
+    <updated>2011-06-03T22:40:00+08:00</updated>
+    <id>http://liluo.org/blog/2011/06/bash-shortcut-key</id>
+    <content type="html"><![CDATA[<p>Ctrl/Alt 有很多实用的组合快捷键，Mark.</p>
+
+<!-- more -->
+
+
+<h2>Ctrl</h2>
+
+<p><code>bash
+ctrl-a/ctrl-e
+移动光标到行首/行尾,同Home/End 键
+ctrl-b/ctrl-f
+后移/前移 一个字符。
+ctrl-c
+杀死当前进程。
+ctrl-d
+杀死当前 Shell。
+ctrl-h
+删除左边一个字符, 同 Backspace 键
+ctrl-l
+清屏, 同 clear
+ctrl-r/ctrl-R
+从之前键入过的历史命令中搜索
+ctrl-u/ctrl-k
+删除光标前/光标后的所有字符
+ctrl-xx
+让光标在当前位置和行尾切换
+ctrl-y
+撤消前一次删除
+ctrl-z
+挂起当前进程,之后可以使用 fg 命令唤醒
+</code></p>
+
+<h2>Alt</h2>
+
+<p><code>bash
+Alt-&lt; Alt-&gt;
+在输入历史中的 最头/最尾 命令。
+Alt-?
+显示当前的补全列表。
+Alt-*
+插入所有可能的补全。
+Alt-/
+(无用)
+Alt-。
+把前面的命令行参数插入到当前位置。
+Alt-b /Alt-f
+后移/前移 一个单词
+Alt-c
+把当前字符改成首字母大写, 同时光标移到词尾
+Alt-d
+删除当前位置到词尾的字符
+Alt-l/Alt-u
+把当前单词变成全 小写/大写, 同时光标移到词尾。
+Alt-n /Alt-p
+在搜索历史中搜索
+Alt-r
+删除全部键入的内容。
+Alt-t
+光标前两个单词的位置互换, 并将光标移到词尾
+Alt-Backspace
+删除光标前一个单词, 同 Ctrl-w 一样
+</code></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[curl 简单作弊条]]></title>
+    <link href="http://liluo.org/blog/2011/05/curl-example/"/>
+    <updated>2011-05-26T22:26:00+08:00</updated>
+    <id>http://liluo.org/blog/2011/05/curl-example</id>
+    <content type="html"><![CDATA[<p>curl 是一款命令行多协议支持的服务器访问工具,可以用它来访问HTTP服务器，就像浏览器一样（当然了，它也是可以通过FTP下载或上传文件）。</p>
+
+<!-- more -->
+
+
+<h3>基本应用</h3>
+
+<p><code>bash
+curl http://www.douban.com
+</code>
+上面的命令会在屏幕上输出服务器的响应信息，需要headers信息加 -i/--include 参数，只需要headers信息可以使用 -I/--head。</p>
+
+<p>重定向输出：
+<code>bash
+curl http://www.douban.com &gt; response.html
+curl http://www.douban.com | grep 'douban.com'
+</code></p>
+
+<p>如果使用管道，默认会有一个进程信息显示出来，可以使用 -s/--silent 来不显示它们：
+<code>bash
+curl -s http://www.douban.com | grep 'douban.com'
+</code></p>
+
+<p>如果想保存服务器返回的内容的话，除了使用 > 重定向到一个文件外，还可以使用 -o/--output 参数指定需要保存到的文件：
+<code>bash
+curl http://www.douban.com -o response.html
+</code></p>
+
+<p>非文本文件也能这样保存：
+<code>bash
+curl http://img3.douban.com/pics/nav/lg_main_a7.png -o logo.png
+</code></p>
+
+<p>原名保存使用 -O/--remote-name 选项：
+<code>bash
+curl http://img3.douban.com/pics/nav/lg_main_a7.png -O
+</code>
+不过豆瓣的图片有简单的防盗链，所以可能下载不成功 : ( 继续往下看</p>
+
+<h3>发送数据</h3>
+
+<p>GET 方法的请求没什么特殊的，直接在 url 中放上数据就可以了：
+<code>bash
+curl http://www.douban.com/?name=luo
+curl http://www.douban.com/?name=小落
+</code></p>
+
+<p>POST 方法的话就需要使用 -d/--data 参数，只要有这个参数，即使值是空字符串，那么出去的就是 POST 方法的访问：
+<code>bash
+curl -d 'name=luoluo&amp;passwd=*****' http://www.douban.com
+</code></p>
+
+<p>将文件以二进制流数据 POST
+<code>bash
+curl -F image=@/Users/luo/img1.jpg http://localhost:4567
+</code></p>
+
+<h3>头部信息</h3>
+
+<p>先说最常构造的两个 User-Agent 和 Referer ，这两个分别使用 -A/--user-agent 和 -e/--referer 来指定：
+<code>bash
+curl -A Chrome http://www.douban.com
+curl -e http://liluo.org http://www.douban.com
+</code></p>
+
+<p>包含这两个头部信息，所有的头部信息参数都可以使用 -H/--header 来设置：
+<code>bash
+curl -H Referer:http://liluo.org http://www.douban.com
+curl -H User-Agent:Chrome -H Accept-Language:zh-cn http://www.douban.com
+</code></p>
+
+<h3>COOKIE控制</h3>
+
+<p>curl 是可以支持带 cookie 的交互行为的。使用方式是 -D/--dump-header 用于指定一个文件保存获取到的 cookie 信息（实际上包含了整个头部信息）， 然后用 -b/--cookie 指定一文件用于读取保存的 cookie 。
+<code>bash
+curl http://www.douban.com -D cookie.txt
+curl http://www.douban.com -b cookie.txx
+</code>
+-D 保存出来的头部信息就是以纯文本形式存放的，所以，你可以方便地随便修改。</p>
+
+<h3>代理和通配符</h3>
+
+<h4>代理设置</h4>
+
+<p>使用 -x/--proxy 参数：
+<code>bash
+curl -x http://web.proxy.url http://www.douban.com
+</code></p>
+
+<h4>通配符</h4>
+
+<p><code>bash
+curl -O http://www.douban.com/~liluo/screen[1-10].jpg
+curl -O http://www.douban.com/~{liluo,luoluo}/[001-201].jpg
+</code></p>
+
+<h4>反向引用分组</h4>
+
+<p><code>bash
+curl -o #2_#1.jpg http://www.douban.com/~{liluo,luo}/[001-201].jpg
+</code></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[SSH automatic login(免密码)]]></title>
+    <link href="http://liluo.org/blog/2011/05/ssh-automatic-login/"/>
+    <updated>2011-05-09T22:13:00+08:00</updated>
+    <id>http://liluo.org/blog/2011/05/ssh-automatic-login</id>
+    <content type="html"><![CDATA[<p>其实我觉得每次使用SSH时输入用户名和密码也没什么不好，但是却被同事各种无情的鄙视。 T T</p>
+
+<h3>创建公钥</h3>
+
+<p><code>bash
+ssh-keygen -t rsa
+</code>
+无视它出来的任何提示，欢快的一路回车到底吧~</p>
+
+<!-- more -->
+
+
+<h3>把公钥复制到远程主机</h3>
+
+<p>把公钥id_rsa.pub复制到远程机器的 /home/username/.ssh目录并命名为authorized_keys
+``` bash</p>
+
+<h1>方法1, os x 可以通过 <code>brew install ssh-copy-id</code> 安装 ssh-copy-id</h1>
+
+<p>ssh-copy-id user@host;</p>
+
+<h1>方法2</h1>
+
+<p>cat ~/.ssh/id_rsa.pub | ssh user@host "mkdir ~/.ssh; cat >> ~/.ssh/authorized_keys"
+```
+多台远程主机就多次复制～ 如果你本机登陆用户和远程登陆用户一致的话，就可以直接 ssh hostname 直接登陆，下面就不用看了。</p>
+
+<h3>解决本地登陆用户与远程登陆用户不一致</h3>
+
+<p>好吧，这事很纠结，虽然不用输入密码了，但是还得 ssh username@hostname 来登陆，很不爽，你懂的。 其实解决也很简单（but是同事告诉我的，老脸一红），修改本地登陆用户的 ~/.ssh/config 文件，如果木有的话就自个儿建一个吧，内容如下：
+``` bash
+Host theoden</p>
+
+<pre><code>user liluo
+</code></pre>
+
+<p>Host fili</p>
+
+<pre><code>user liluo
+</code></pre>
+
+<p>Host hostname</p>
+
+<pre><code>user name
+</code></pre>
+
+<p>```
+这样，本地和远程登陆用户名不一致也可以 ssh hostname 登陆了。</p>
+]]></content>
+  </entry>
+  
+</feed>

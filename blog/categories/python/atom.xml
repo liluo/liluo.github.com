@@ -1,0 +1,666 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Python | 落]]></title>
+  <link href="http://liluo.org/blog/categories/python/atom.xml" rel="self"/>
+  <link href="http://liluo.org/"/>
+  <updated>2016-01-03T16:15:14+08:00</updated>
+  <id>http://liluo.org/</id>
+  <author>
+    <name><![CDATA[落]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[怎样制作一个 Python Egg]]></title>
+    <link href="http://liluo.org/blog/2012/08/how-to-create-python-egg/"/>
+    <updated>2012-08-30T20:58:00+08:00</updated>
+    <id>http://liluo.org/blog/2012/08/how-to-create-python-egg</id>
+    <content type="html"><![CDATA[<p><img src="http://i1170.photobucket.com/albums/r539/liluoliluo/7f3c8c9e.jpg" title="Python Egg" alt="Python Egg" /></p>
+
+<p>前段时间在玩 OAuth2，尝试了很多个 Python 封装的 OAuth2 第三方库，感觉都不是很对自己胃口(最无语的是那个叫作 oauth2 的库，居然是 OAuth 1.0 的实现？？！！)，于是自己写了一个叫作 <a href="http://pypi.python.org/pypi/py-oauth2/">py-oauth2</a> 的“库”。之所以取这个名字是因为之前用过一个叫 py-trello 的库，以为叫 py-xxx 会很洋气，现在想想真是土死了…</p>
+
+<p>制作打包一个 Python Egg 并部署整个过程还蛮有意思的，下面小教程(这里以制作一个叫作 bee 的 Egg 为例)～</p>
+
+<!-- more -->
+
+
+<h2>制作</h2>
+
+<p>先创建一个项目文件夹:</p>
+
+<p><code>bash
+$ mkdir bee-egg # 这个名字可以随便取
+$ cd bee-egg
+</code></p>
+
+<p>在里边建一个叫 bee 的文件夹(逻辑比较简单的话可以直接建一个叫作 bee.py 的文件)，放业务逻辑代码:</p>
+
+<p><code>bash
+mkdir bee
+touch bee/__init__.py
+</code></p>
+
+<p>其中 bee/<strong>init</strong>.py 写几行代码:</p>
+
+<p>``` python</p>
+
+<h1>-<em>- coding: utf-8 -</em>-</h1>
+
+<p>def hoot():</p>
+
+<pre><code>return 'hum hum'
+</code></pre>
+
+<p>def add(x, y):</p>
+
+<pre><code>return x + y
+</code></pre>
+
+<p>```</p>
+
+<p>在 bee-egg 目录中创建 Egg 的配置文件 setup.py :</p>
+
+<p>```</p>
+
+<h1>!/usr/bin/env python</h1>
+
+<p>from setuptools import setup, find_packages</p>
+
+<p>setup(</p>
+
+<pre><code>name = 'bee',
+version = '0.0.1',
+keywords = ('bee', 'egg'),
+description = 'a simple egg',
+license = 'MIT License',
+
+url = 'http://liluo.org',
+author = 'liluo',
+author_email = 'i@liluo.org',
+
+packages = find_packages(),
+include_package_data = True,
+platforms = 'any',
+install_requires = [],
+</code></pre>
+
+<p>)
+```</p>
+
+<p><em>*setup 中完整的参数及说明可以看</em> <a href="http://docs.python.org/distutils/setupscript.html#additional-meta-data">http://docs.python.org/distutils/setupscript.html#additional-meta-data</a></p>
+
+<p>当前目录文件结构如下：</p>
+
+<p>``` bash
+bee-egg/</p>
+
+<pre><code>    bee/
+       __init__.py
+    setup.py
+</code></pre>
+
+<p>```</p>
+
+<h2>打包</h2>
+
+<p>打包是最重要却又最简单的一步，执行:</p>
+
+<p><code>bash
+python setup.py xxxx
+</code></p>
+
+<p>即可。比较主流的2种打包格式：</p>
+
+<p>``` bash</p>
+
+<h1>以下所有生成文件将在当前路径下 dist 目录中</h1>
+
+<p>python setup.py bdist_egg # 生成类似 bee-0.0.1-py2.7.egg，支持 easy_install
+python setup.py sdist     # 生成类似 bee-0.0.1.tar.gz，支持 pip
+```</p>
+
+<p>当然还有其他非主流格式或者其他选项，可以通过下面这个命令查看：</p>
+
+<p><code>bash
+python setup.py --help-commands                                                                                                            
+</code></p>
+
+<h2>部署到 PyPI</h2>
+
+<h4>注册 Egg</h4>
+
+<p>可以通过 SSH 或者 <a href="http://pypi.python.org/pypi?%3Aaction=submit_form">web form</a> ，SSH 步骤：</p>
+
+<p>``` bash
+$ python setup.py register
+running register
+running egg_info
+writing bee.egg-info/PKG-INFO
+writing top-level names to bee.egg-info/top_level.txt
+writing dependency_links to bee.egg-info/dependency_links.txt
+reading manifest file 'bee.egg-info/SOURCES.txt'
+writing manifest file 'bee.egg-info/SOURCES.txt'
+running check
+We need to know who you are, so please choose either:
+ 1. use your existing login,
+ 2. register as a new user,
+ 3. have the server generate a new password for you (and email it to you), or
+ 4. quit
+Your selection [default 1]:</p>
+
+<p>Username: liluo
+Password:
+Registering bee to http://pypi.python.org/pypi
+Server response (200): OK
+I can store your PyPI login so future submissions will be faster.
+(the login will be stored in /Users/luo/.pypirc)
+Save your login (y/N)?y
+```
+<em>*关于 register 更详细的内容可以看</em> <a href="http://docs.python.org/distutils/packageindex.html">http://docs.python.org/distutils/packageindex.html</a></p>
+
+<h4>上传到 PyPI</h4>
+
+<p>上传文件也是有 SSH 和 web form 2种方法。</p>
+
+<p>web form: 在浏览器登陆到 PyPI 点击 Your packages 中 Egg 的项目，然后选择某个版本的 files 即可看到上传界面。</p>
+
+<p>SSH:
+``` bash
+$ python setup.py sdist bdist_egg upload</p>
+
+<h1>这里上传的是 .tar.gz 压缩包和 .egg 文件</h1>
+
+<h1>屏幕上大片信息输出，最后会看到</h1>
+
+<p>running upload
+Submitting dist/bee-0.0.1.tar.gz to http://pypi.python.org/pypi
+Server response (200): OK
+Submitting dist/bee-0.0.1-py2.7.egg to http://pypi.python.org/pypi
+Server response (200): OK
+```</p>
+
+<h4>安装测试</h4>
+
+<p>先用 pip 安装：
+``` bash
+$ pip install bee
+Downloading/unpacking bee
+  Downloading bee-0.0.1.tar.gz
+  Running setup.py egg_info for package bee</p>
+
+<p>Installing collected packages: bee
+  Running setup.py install for bee</p>
+
+<p>Successfully installed bee
+Cleaning up...
+```</p>
+
+<p>测试：
+``` bash
+$ python</p>
+
+<blockquote><blockquote><blockquote><p>import bee
+dir(bee)
+['<strong>builtins</strong>', '<strong>doc</strong>', '<strong>file</strong>', '<strong>name</strong>', '<strong>package</strong>', '<strong>path</strong>', 'add', 'hoot']
+bee.add(1,3)
+4
+from bee import hoot
+hoot()
+'hum hum'
+```
+Yeah！现在世界人民都可以用 [bee]<a href="http://pypi.python.org/pypi/bee/">http://pypi.python.org/pypi/bee/</a> 这个 Python Egg 了～</p></blockquote></blockquote></blockquote>
+
+<p>卸载掉用 easy_install 试下:
+``` bash
+$ pip uninstall bee
+Uninstalling bee:
+  /Library/Python/2.7/site-packages/bee
+  /Library/Python/2.7/site-packages/bee-0.0.1-py2.7.egg-info
+Proceed (y/n)? y
+  Successfully uninstalled bee
+$ easy_install bee
+Searching for bee
+Reading http://pypi.python.org/simple/bee/
+Reading http://liluo.org
+Best match: bee 0.0.1
+Downloading http://pypi.python.org/packages/2.7/b/bee/bee-0.0.1-py2.7.egg#md5=6b5a719f1ca42367fb05d1e3eb45fbe5
+Processing bee-0.0.1-py2.7.egg
+Moving bee-0.0.1-py2.7.egg to /Library/Python/2.7/site-packages
+Adding bee 0.0.1 to easy-install.pth file</p>
+
+<p>Installed /Library/Python/2.7/site-packages/bee-0.0.1-py2.7.egg
+Processing dependencies for bee
+Finished processing dependencies for bee
+```</p>
+
+<p>可以再重做一下上面的测试，验证一下。</p>
+
+<p><em>*关于 upload 更详细的内容可以看</em> <a href="http://docs.python.org/distutils/uploading.html">http://docs.python.org/distutils/uploading.html</a></p>
+
+<h2>Tips</h2>
+
+<h4>pip install xxxx 时默认只会找对应的压缩包文件</h4>
+
+<p>当时我用 easy_install 安装没问题，但是 pip 每次都说找不到资源。我盯着 <a href="http://www.douban.com/people/hongqn/">@hongqn</a> 在 PyPI 上的 CaoE 足足2分钟才反应过来，原来它是需要一个压缩包格式的文件。</p>
+
+<h4>setup.py 中调用当前目录的文件一定要加 MANIFEST.in 并将调用文件 include 进来</h4>
+
+<p>使用 python setup.py sdist 打包时，如果 setup.py 调用了当前目录中的文件(如README.rst):</p>
+
+<p><code>python
+long_description = open('README.rst').read()
+</code></p>
+
+<p>一定要在增加 MANIFEST.in 文件并将调用文件 include 进来，否则将导致用户在 pip install 时报文件找不到的错误，示例:</p>
+
+<p><code>bash
+$ cat MANIFEST.in
+include README.rst
+</code>
+更详情的可以看 <a href="http://docs.python.org/distutils/sourcedist.html#specifying-the-files-to-distribute">http://docs.python.org/distutils/sourcedist.html#specifying-the-files-to-distribute</a></p>
+
+<h4>偶尔去看一下自己的 Egg 在 PyPI 上的下载数也挺欢乐的</h4>
+
+<p>``` bash</p>
+
+<p>Version: 0.0.3
+py-oauth2-0.0.3.tar.gz(251)
+py_oauth2-0.0.3-py2.7.egg(218)</p>
+
+<p>Version: 0.0.2
+py-oauth2-0.0.2.tar.gz(376)
+py_oauth2-0.0.2-py2.6.egg(435)
+py_oauth2-0.0.2-py2.7.egg(304)</p>
+
+<p>Version: 0.0.1
+py_oauth2-0.0.1-py2.6.egg(478)</p>
+
+<p>```</p>
+
+<p><strong>END</strong></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[使用Python/Ruby/Bash Post 文件二进制流（stream）]]></title>
+    <link href="http://liluo.org/blog/2012/05/post-file-stream-with-linux-python-ruby-bash/"/>
+    <updated>2012-05-04T23:14:00+08:00</updated>
+    <id>http://liluo.org/blog/2012/05/post-file-stream-with-linux-python-ruby-bash</id>
+    <content type="html"><![CDATA[<p>之前经常使用Python的urllib, urllib2两个库写爬虫或者是向第三方接口post数据，很是清爽。今天有需求要把图片文件post到第三方接口，当我又祭出urllib+urllib2两大法宝时，结果很不意外的被洗刷刷了……</p>
+
+<p>被洗刷的感觉很不爽，需求是流氓，你弱它就强，所以一定要搞定它 XD</p>
+
+<p>各种搜罗和实践测试，最后得到了python\ruby\bash几个版本：</p>
+
+<!-- more -->
+
+
+<h2>Pyhton版1</h2>
+
+<p>使用第三方库poster, 安装：
+<code>bash
+easy_install poster
+</code></p>
+
+<p>代码:
+``` python
+from poster.encode import multipart_encode
+from poster.streaminghttp import register_openers
+import urllib2</p>
+
+<p>register_openers()</p>
+
+<p>datagen, headers = multipart_encode({</p>
+
+<pre><code>                 'image': open('/Users/luo/img1.jpg', 'rb')
+               })
+</code></pre>
+
+<p>request = urllib2.Request('http://localhost:4567/', datagen, headers)
+print urllib2.urlopen(request).read()
+```
+参考：<a href="http://atlee.ca/software/poster/index.html">http://atlee.ca/software/poster/index.html</a></p>
+
+<h2>Python版2</h2>
+
+<p>使用第三方库requests（同事 Tachikoma 推荐），安装：
+<code>bash
+easy_install requests
+或者
+pip install requests
+</code>
+代码：
+``` python
+import requests</p>
+
+<p>url = 'http://localhost:4567'
+files={'image': ('img1.jpg',open('/Users/luo/img1.jpg', 'rb'))}</p>
+
+<p>r = requests.post(url, files=files)
+```
+参考：<a href="http://docs.python-requests.org/en/latest/user/quickstart/">http://docs.python-requests.org/en/latest/user/quickstart/</a></p>
+
+<h2>Ruby版</h2>
+
+<p>使用gem包rest-client，安装：
+<code>bash
+gem install rest-client
+</code>
+代码：
+``` ruby
+require 'rest_client'
+RestClient.post('http://localhost:4567/',</p>
+
+<pre><code>            :image =&gt; File.new('/Users/luo/img1.jpg'))
+</code></pre>
+
+<p>```
+参考：<a href="https://github.com/adamwiggins/rest-client">https://github.com/adamwiggins/rest-client</a></p>
+
+<h2>Bash版</h2>
+
+<p>使用curl，安装：
+<code>bash
+不用讲了吧？
+</code>
+代码：
+<code>bash
+curl -F image=@/Users/luo/img1.jpg http://localhost:4567
+</code>
+参考：
+<code>bash
+man curl
+</code></p>
+
+<h3>测试的服务器端代码:</h3>
+
+<p><code>ruby
+require 'sinatra'
+post '/' do
+  data = params['image'][:tempfile].read
+  f = File.new('image1.jpg', 'w')
+  f.puts data
+  f.close
+  'ok'
+end
+</code></p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[单元测试的那些事]]></title>
+    <link href="http://liluo.org/blog/2012/03/about-unittest/"/>
+    <updated>2012-03-14T23:05:00+08:00</updated>
+    <id>http://liluo.org/blog/2012/03/about-unittest</id>
+    <content type="html"><![CDATA[<p>单元测试是在第一次面豆瓣时候被拒之后才开始接触的，那时候去网上g了此资料，感觉对各种“不可能出错的事情”测试是无聊到极致而又闲着蛋疼的人才会做的。之后也有实践，很长一段时间用"DDT"应付下形式，直到有1天……</p>
+
+<p>今天，在豆瓣的HappyDay现场，来记录一下自己和unittest之间不得不说的几件事。</p>
+
+<!-- more -->
+
+
+<h3>转变</h3>
+
+<p>在豆瓣入职之后很长一段时间里，@cnborn 和 @zchi 对unittest各种赞扬，也会刻意把一些需要unittest的事情给我来做，让我看各种TDD的书。但是这些都经历了以后，我依然对unittest不屑一顾。</p>
+
+<p>事情的转机在是一个即将下班的6点，那天的状态实在是不好，代码也写的心不在焉，unittest也很给面子的报N多fail。我觉得有必要认真看下是什么情况，结果看到import error，查了下代码发现是自己把方法名给写错了，那种懊悔的心情真的很难形容……对，就是这样一个很低级的错误让我认识到了unittest真正的意义，于是也有意识的会把原来的DDT向TDD 转换。当然之后还会很多大小事件让我更加乐意去实践unittest，比如看下面——</p>
+
+<h3>重构</h3>
+
+<p>2012年初我做了一件特别有意义的开发任务——重构。其实就算是2个月后的现在，内心还是有些感慨。简单来说，这次重构的目的是为了摘掉ORM（关于ORM的坑，谁进去过谁知道……），改进代码质量，统一代码命名、风格等等。说来这是我第1次对项目整体性、系统性的重构，感谢cnborn~</p>
+
+<p>重构的过程会让人成长很多，像一面放大镜，可以学到同事特别棒的代码写法，也会发现一些逻辑及各种xxoo的问题……当然，这些不是重点～重构过程中最怕的是没有unittest！！！在错综而又混乱的命名中实在理解不能，看到那些没有unittest的的实现，根本就是无从下手，各种想痛苦纠结……然后，怎样呢？补unittest的case，有几天时间我就是在疯狂的补写case（最后的case比重构前多了一倍，这都是后话了）。</p>
+
+<p>没有unittest的代码真的会让重构或者维护的同事发疯的，没有unittest是对自己的代码对同事不负责任，只写实现不写unittest的人就是流氓兔！！</p>
+
+<h3>HappyDay</h3>
+
+<p>首先解释下，happyday是豆瓣工程师的盛大节日，绝对远超三八节于女同胞们、六一儿童节于宝宝们的意义。这里提到happyday，是因为今天的happyday的主题就是unittest。将电脑投放到大屏幕，各位coder轮流上去写代码，鸭梨很大有木有……我和zchi是我比赛小分队里第1组上场的，zchi写unittest我写实现。不知道zchi是怎样的状态，我上场整个过程中手都是在抖着，阿门。看来以后有机会应该多练习这种众人注目的鸭梨下写代码的能力 : )</p>
+
+<p>@豆瓣 HappyDay 现场</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Python 使用 PIL 给图片添加水印]]></title>
+    <link href="http://liluo.org/blog/2011/08/python-add-watermark-with-pil/"/>
+    <updated>2011-08-09T22:46:00+08:00</updated>
+    <id>http://liluo.org/blog/2011/08/python-add-watermark-with-pil</id>
+    <content type="html"><![CDATA[<p>前几天在做一个给指定相册添加水印的功能，使用的是PIL(Python Image Library)。
+先看一下网上，找到这篇：<a href="http://code.activestate.com/recipes/362879-watermark-with-pil/">Watermark with PIL (Python recipe)</a> 于是，处理水印的核心代码就差不多有了～</p>
+
+<p>当然，问题也接着来了，首先就是拿到的图片文件和水印文件。我这边得到上传图片文件基本上会是文件二进制数据流或者由Flash post过来的application/octet-stream类型的二进制数据流，并不能像参考中的代码使用指定路径拿到文件，所以数据流进行处理：
+<code>python
+import Image, ImageEnhance
+from cStringIO import StringIO
+img = Image.open(StringIO(img_data)) # img_data 是post过来的数据流
+</code>
+这样就可以拿到一个Image对象了。再使用类似参考代码对它进行水印处理。</p>
+
+<!-- more -->
+
+
+<p>然后在上传图片的时候，依然使用原来的机制，这里再把加过水印的数据流丢出去：
+<code>python
+new_img = StringIO()
+img.save(new_img, img_format, quality=100) # quality来指定生成图片的质量，范围是0～100
+reutrn new_img.getvalue()
+</code></p>
+
+<p>代码上线不久之后，就有同事反映说有png图片上传之后会原图会变掉，我拿png去上传之后效果正常，于是把他那张图拿过来测试，果然报错。后来发现他那张png使用的模式是'RGBA', 而我们一般情况下的png或者gif模式是'P'，会不会是因为图片模式问题呢？测试一下：
+<code>python
+img = Image.open('/Users/luo/p.png')
+img.show()
+</code></p>
+
+<p>在这个时候图片就已经被奇怪的变化了 ＃＃
+后来多次尝试发现在 img.save() 时指定format='PNG'时效果正常，于是另加上了mode判断：
+``` python
+if img.mode != 'RGBA':</p>
+
+<pre><code>img = img.convert('RGBA')
+img_format = 'JPEG'
+</code></pre>
+
+<p>else:</p>
+
+<pre><code>img_format = 'PNG'
+</code></pre>
+
+<p>img.save(new_img, img_format, quality=100)
+```</p>
+
+<p>本地环境测试ok，然后代码提交～
+完整代码：</p>
+
+<p>``` python
+from cStringIO import StringIO
+import Image, ImageEnhance
+LEFT_TOP     = 'lt'
+LEFT_BOTTOM  = 'lb'
+RIGHT_TOP    = 'rt'
+RIGHT_BOTTOM = 'rb'</p>
+
+<p>WIDTH_GRID = 30.0
+HIGHT_GRID = 30.0</p>
+
+<p>def mark_layout(im, mark, layout=RIGHT_BOTTOM):</p>
+
+<pre><code>im_width, im_hight     = im.size[0], im.size[1]
+mark_width, mark_hight = mark.size[0], mark.size[1]
+
+coordinates = { LEFT_TOP: (int(im_width/WIDTH_GRID),int(im_hight/HIGHT_GRID)),
+                LEFT_BOTTOM: (int(im_width/WIDTH_GRID), int(im_hight - mark_hight - im_hight/HIGHT_GRID)),
+                RIGHT_TOP: (int(im_width - mark_width - im_width/WIDTH_GRID), int(im_hight/HIGHT_GRID)),
+                RIGHT_BOTTOM: (int(im_width - mark_width - im_width/WIDTH_GRID), \
+                int(im_hight - mark_hight - im_hight/HIGHT_GRID)),
+              }
+return coordinates[layout]
+</code></pre>
+
+<p>def reduce_opacity(mark, opacity):</p>
+
+<pre><code>assert opacity &gt;= 0 and opacity &lt;= 1
+mark  = mark.convert('RGBA') if mark.mode != 'RGBA' else mark.copy()
+alpha = mark.split()[3]
+alpha = ImageEnhance.Brightness(alpha).enhance(opacity)
+mark.putalpha(alpha)
+return mark
+</code></pre>
+
+<p>def water_mark(img_data, opacity=1):</p>
+
+<pre><code>img  = Image.open(StringIO(img_data))
+mark = Image.open('/mark/path') # 水印文件可以使用指定路径
+#mark = fs.get(mark_url)
+
+if not mark:
+    return img_data
+
+mark = Image.open(StringIO(mark))
+
+if opacity &lt; 1:
+    mark = reduce_opacity(mark, opacity)
+
+if img.mode != 'RGBA':
+    img = img.convert('RGBA')
+    img_format = 'JPEG'
+else:
+    img_format = 'PNG'
+
+# 指定上传图片最大宽度580和高宽600，如超过进行resize
+if img.size[0] &gt; 580:
+    img = img.resize((580, img.size[1]/(img.size[0]/580.0)), resample=1)
+
+if img.size[1] &gt; 600:
+    img = img.resize((img.size[0]/(img.size[1]/600.0),600), resample=1)
+
+layer = Image.new('RGBA', img.size, (0,0,0,0))
+layer.paste(mark, mark_layout(img, mark, layout))
+
+img = Image.composite(layer, img, layer)
+
+new_img = StringIO()
+img.save(new_img, img_format, quality=100)
+
+return new_img.getvalue()
+</code></pre>
+
+<p>```</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Memcached 安装/使用(Python操作)]]></title>
+    <link href="http://liluo.org/blog/2011/03/memcached-install-and-using/"/>
+    <updated>2011-03-14T21:42:00+08:00</updated>
+    <id>http://liluo.org/blog/2011/03/memcached-install-and-using</id>
+    <content type="html"><![CDATA[<p>Memcached官网 <a href="http://memcached.org">http://memcached.org</a></p>
+
+<h2>简单介绍</h2>
+
+<p>Memcached很强大，它可以支持分布式的共享内存缓存，大型站点都用它。对小站点来说，有足够内存的话，使用它也可以得到超赞的效果。</p>
+
+<h2>使用目的</h2>
+
+<p>由前面的介绍看到，大家使用它都是为了速度，不过我却是为了解决Session在不同浏览器中偶尔丢失的数据。其实也不能怪浏览器啦，主要是我需要一个dict类型的session。</p>
+
+<!-- more -->
+
+
+<h2>安装</h2>
+
+<h3>Linux</h3>
+
+<p>安装
+``` bash</p>
+
+<h1>Debian/Ubuntu</h1>
+
+<p>sudo apt-get install memcached</p>
+
+<h1>Redhat/Fedora/CentOS</h1>
+
+<p>sudo yum install memcached
+```</p>
+
+<p>启动Memcached
+<code>bash
+-d 选项是启动一个守护进程
+-m 是分配给Memcache使用的内存数量，单位是MB，默认64MB
+-M return error on memory exhausted (rather than removing items)
+-u 是运行Memcache的用户，如果当前为root 的话，需要使用此参数指定用户
+-l 是监听的服务器IP地址，默认为所有网卡
+-p 是设置Memcache的TCP监听的端口，最好是1024以上的端口
+-c 选项是最大运行的并发连接数，默认是1024
+-P 是设置保存Memcache的pid文件
+-f chunk size growth factor (default: 1.25)
+-I Override the size of each slab page. Adjusts max item size(1.4.2版本新增)
+</code></p>
+
+<p>例子
+<code>bash
+/usr/local/memcached/bin/memcached -d -m 100 -c 1000 -u root -p 11211
+</code>
+可以启动多个守护进程，但是端口不能重复。 设置开机启动的话可以将上行命令增加到/etc/rc.d/rc.local文件中。</p>
+
+<h3>Windows</h3>
+
+<ol>
+<li>下载memcache的windows稳定版 <a href="http://splinedancer.com/memcached-win32/">http://splinedancer.com/memcached-win32/</a></li>
+<li>解压放某个盘下面，比如在c:\memcached</li>
+<li>在终端（也即cmd命令界面）cd到解压目录（这里是c:\memcached），运行 memcached.exe -d install 安装服务</li>
+<li>运行memcached.exe -d start，memcached会使用默认的端口(11211)来启动，你可以在任务管理器中看到memcached.exe</li>
+</ol>
+
+
+<h2>Python 操作 Memcached</h2>
+
+<p>memcached API地址 http://code.google.com/p/memcached/wiki/Clients</p>
+
+<p>网上流传说Python-API中效率最高的是python-libmemcached，这里居然看到了hongqn（豆瓣首席架构师，后来也得到证实python-libmemcached是豆瓣贡献，看来豆瓣的阳光真的是撒满了Python的各个角落）。</p>
+
+<p>另外还有python-memcached（100%纯Python），python-memcache（据说有内存泄漏问题？），cmemcache（代码多年未更新？）。</p>
+
+<p>不过由于目前需要中效率并没有太高要求，于是选择了使用最多的python-memcached：
+安装 python-memcached
+<code>bash
+sudo easy_install python-memcached
+</code>
+Python操作memcached
+<code>python
+import memcache
+mc = memcache.Client(['127.0.0.1:11211'],debug=True)
+mc.set('name','luo',60)
+print mc.get('name')
+mc.delete('name')
+</code></p>
+
+<h2>Memcached常用方法</h2>
+
+<p>memcache其实是一个map结构，最常用的几个函数：</p>
+
+<p>保存数据
+<code>bash
+set(key,value,timeout) 把key映射到value，timeout指的是什么时候这个映射失效
+add(key,value,timeout)  仅当存储空间中不存在键相同的数据时才保存
+replace(key,value,timeout) 仅当存储空间中存在键相同的数据时才保存
+</code></p>
+
+<p>获取数据
+<code>bash
+get(key) 返回key所指向的value
+get_multi(key1,key2,key3,key4) 可以非同步地同时取得多个键值， 比循环调用get快数十倍
+</code></p>
+
+<p>删除数据
+<code>bash
+delete(key, timeout) 删除键为key的数据，timeout为时间值，禁止在timeout时间内名为key的键保存新数据（set函数无效）。
+</code></p>
+]]></content>
+  </entry>
+  
+</feed>

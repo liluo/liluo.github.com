@@ -1,0 +1,431 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Memcached 安装/使用(Python操作) - 落</title>
+  <meta name="author" content="落">
+
+  
+  <meta name="description" content="Memcached官网 http://memcached.org 简单介绍 Memcached很强大，它可以支持分布式的共享内存缓存，大型站点都用它。对小站点来说，有足够内存的话，使用它也可以得到超赞的效果。 使用目的 由前面的介绍看到，大家使用它都是为了速度， &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://liluo.org/blog/2011/03/memcached-install-and-using/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="落" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">落</a></h1>
+  
+    <h2>落就是一道风景线</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:liluo.org" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+  <li><a href="/about/">About</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Memcached 安装/使用(Python操作)</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2011-03-14T21:42:00+08:00" pubdate data-updated="true">Mar 14<span>th</span>, 2011</time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>Memcached官网 <a href="http://memcached.org">http://memcached.org</a></p>
+
+<h2>简单介绍</h2>
+
+<p>Memcached很强大，它可以支持分布式的共享内存缓存，大型站点都用它。对小站点来说，有足够内存的话，使用它也可以得到超赞的效果。</p>
+
+<h2>使用目的</h2>
+
+<p>由前面的介绍看到，大家使用它都是为了速度，不过我却是为了解决Session在不同浏览器中偶尔丢失的数据。其实也不能怪浏览器啦，主要是我需要一个dict类型的session。</p>
+
+<!-- more -->
+
+
+<h2>安装</h2>
+
+<h3>Linux</h3>
+
+<p>安装</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="c"># Debian/Ubuntu</span>
+</span><span class='line'>sudo apt-get install memcached
+</span><span class='line'>
+</span><span class='line'><span class="c"># Redhat/Fedora/CentOS</span>
+</span><span class='line'>sudo yum install memcached
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>启动Memcached</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>-d 选项是启动一个守护进程
+</span><span class='line'>-m 是分配给Memcache使用的内存数量，单位是MB，默认64MB
+</span><span class='line'>-M <span class="k">return </span>error on memory exhausted <span class="o">(</span>rather than removing items<span class="o">)</span>
+</span><span class='line'>-u 是运行Memcache的用户，如果当前为root 的话，需要使用此参数指定用户
+</span><span class='line'>-l 是监听的服务器IP地址，默认为所有网卡
+</span><span class='line'>-p 是设置Memcache的TCP监听的端口，最好是1024以上的端口
+</span><span class='line'>-c 选项是最大运行的并发连接数，默认是1024
+</span><span class='line'>-P 是设置保存Memcache的pid文件
+</span><span class='line'>-f chunk size growth factor <span class="o">(</span>default: 1.25<span class="o">)</span>
+</span><span class='line'>-I Override the size of each slab page. Adjusts max item size<span class="o">(</span>1.4.2版本新增<span class="o">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>例子</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>/usr/local/memcached/bin/memcached -d -m 100 -c 1000 -u root -p 11211
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>可以启动多个守护进程，但是端口不能重复。 设置开机启动的话可以将上行命令增加到/etc/rc.d/rc.local文件中。</p>
+
+<h3>Windows</h3>
+
+<ol>
+<li>下载memcache的windows稳定版 <a href="http://splinedancer.com/memcached-win32/">http://splinedancer.com/memcached-win32/</a></li>
+<li>解压放某个盘下面，比如在c:\memcached</li>
+<li>在终端（也即cmd命令界面）cd到解压目录（这里是c:\memcached），运行 memcached.exe -d install 安装服务</li>
+<li>运行memcached.exe -d start，memcached会使用默认的端口(11211)来启动，你可以在任务管理器中看到memcached.exe</li>
+</ol>
+
+
+<h2>Python 操作 Memcached</h2>
+
+<p>memcached API地址 http://code.google.com/p/memcached/wiki/Clients</p>
+
+<p>网上流传说Python-API中效率最高的是python-libmemcached，这里居然看到了hongqn（豆瓣首席架构师，后来也得到证实python-libmemcached是豆瓣贡献，看来豆瓣的阳光真的是撒满了Python的各个角落）。</p>
+
+<p>另外还有python-memcached（100%纯Python），python-memcache（据说有内存泄漏问题？），cmemcache（代码多年未更新？）。</p>
+
+<p>不过由于目前需要中效率并没有太高要求，于是选择了使用最多的python-memcached：
+安装 python-memcached</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>sudo easy_install python-memcached
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Python操作memcached</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="kn">import</span> <span class="nn">memcache</span>
+</span><span class='line'><span class="n">mc</span> <span class="o">=</span> <span class="n">memcache</span><span class="o">.</span><span class="n">Client</span><span class="p">([</span><span class="s">&#39;127.0.0.1:11211&#39;</span><span class="p">],</span><span class="n">debug</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</span><span class='line'><span class="n">mc</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s">&#39;name&#39;</span><span class="p">,</span><span class="s">&#39;luo&#39;</span><span class="p">,</span><span class="mi">60</span><span class="p">)</span>
+</span><span class='line'><span class="k">print</span> <span class="n">mc</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s">&#39;name&#39;</span><span class="p">)</span>
+</span><span class='line'><span class="n">mc</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s">&#39;name&#39;</span><span class="p">)</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Memcached常用方法</h2>
+
+<p>memcache其实是一个map结构，最常用的几个函数：</p>
+
+<p>保存数据</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'><span class="nb">set</span><span class="o">(</span>key,value,timeout<span class="o">)</span> 把key映射到value，timeout指的是什么时候这个映射失效
+</span><span class='line'>add<span class="o">(</span>key,value,timeout<span class="o">)</span>  仅当存储空间中不存在键相同的数据时才保存
+</span><span class='line'>replace<span class="o">(</span>key,value,timeout<span class="o">)</span> 仅当存储空间中存在键相同的数据时才保存
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>获取数据</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>get<span class="o">(</span>key<span class="o">)</span> 返回key所指向的value
+</span><span class='line'>get_multi<span class="o">(</span>key1,key2,key3,key4<span class="o">)</span> 可以非同步地同时取得多个键值， 比循环调用get快数十倍
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>删除数据</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='bash'><span class='line'>delete<span class="o">(</span>key, timeout<span class="o">)</span> 删除键为key的数据，timeout为时间值，禁止在timeout时间内名为key的键保存新数据（set函数无效）。
+</span></code></pre></td></tr></table></div></figure>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">落</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2011-03-14T21:42:00+08:00" pubdate data-updated="true">Mar 14<span>th</span>, 2011</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/python/'>Python</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://liluo.org/blog/2011/03/memcached-install-and-using/" data-via="liluoliluo" data-counturl="http://liluo.org/blog/2011/03/memcached-install-and-using/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2011/01/python-using-xlrd-xlwt-operate-excel/" title="Previous Post: Python 使用 xlrd/xlwt 操作 Excel">&laquo; Python 使用 xlrd/xlwt 操作 Excel</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2011/03/linux-install-mongodb/" title="Next Post: Linux 安装 MongoDB及简单入门">Linux 安装 MongoDB及简单入门 &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2015/12/mysql-online-ddl/">非 DBA 也要勇敢的 Online(!) DDL</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/12/douban-linguist/">Douban Linguist</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/11/remote-tools/">Remote 之工具篇</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/03/we-all-love-pull-request/">我们都爱 Pull Request</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/08/how-to-create-python-egg/">怎样制作一个 Python Egg</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/liluo">@liluo</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'liluo',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+<section>
+  <h1>Latest Tweets</h1>
+  <ul id="tweets">
+    <li class="loading">Status updating...</li>
+  </ul>
+  <script type="text/javascript">
+    $.domReady(function(){
+      getTwitterFeed("liluoliluo", 4, false);
+    });
+  </script>
+  <script src="/javascripts/twitter.js" type="text/javascript"> </script>
+  
+    <a href="http://twitter.com/liluoliluo" class="twitter-follow-button" data-show-count="false">Follow @liluoliluo</a>
+  
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2016 - 落 -
+  <span>
+    <a href="http://www.miibeian.gov.cn" target="_blank">沪ICP备10005385号</a>
+  </span>
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+  <span>
+    <script src="http://s175.cnzz.com/stat.php?id=1892088&web_id=1892088&show=pic" language="JavaScript" charset="gb2312"></script>
+  </span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'liluo';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://liluo.org/blog/2011/03/memcached-install-and-using/';
+        var disqus_url = 'http://liluo.org/blog/2011/03/memcached-install-and-using/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

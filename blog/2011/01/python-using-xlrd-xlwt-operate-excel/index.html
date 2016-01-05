@@ -1,0 +1,443 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Python 使用 xlrd/xlwt 操作 Excel - 落</title>
+  <meta name="author" content="落">
+
+  
+  <meta name="description" content="Python 处理 Excel，可以使用 xlrd/xlwt 2个模块，使用简单特好上手。 xlrd 安装 1
+sudo easy_install xlrd # windows 参考http://pypi.python.org/pypi/xlrd 简单使用 1
+2
+3
+4
+5
+6
+7
+8
+9
+10 &hellip;">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://liluo.org/blog/2011/01/python-using-xlrd-xlwt-operate-excel/">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="/javascripts/ender.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <link href="/atom.xml" rel="alternate" title="落" type="application/atom+xml">
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">落</a></h1>
+  
+    <h2>落就是一道风景线</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="http://google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:liluo.org" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+  <li><a href="/about/">About</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <header>
+    
+      <h1 class="entry-title">Python 使用 Xlrd/xlwt 操作 Excel</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2011-01-07T21:16:00+08:00" pubdate data-updated="true">Jan 7<span>th</span>, 2011</time>
+        
+         | <a href="#disqus_thread">Comments</a>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>Python 处理 Excel，可以使用 xlrd/xlwt 2个模块，使用简单特好上手。</p>
+
+<!-- more -->
+
+
+<h2>xlrd</h2>
+
+<p>安装</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="n">sudo</span> <span class="n">easy_install</span> <span class="n">xlrd</span> <span class="c"># windows 参考http://pypi.python.org/pypi/xlrd</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>简单使用</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="kn">import</span> <span class="nn">xlrd</span>
+</span><span class='line'><span class="n">data</span> <span class="o">=</span> <span class="n">xlrd</span><span class="o">.</span><span class="n">open_workbook</span><span class="p">(</span><span class="s">&#39;demo.xls&#39;</span><span class="p">)</span> <span class="c"># 打开demo.xls</span>
+</span><span class='line'><span class="n">data</span><span class="o">.</span><span class="n">sheet_names</span><span class="p">()</span>        <span class="c"># 获取xls文件中所有sheet的名称</span>
+</span><span class='line'><span class="n">table</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">sheets</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>  <span class="c"># 获取xls文件第一个工作表</span>
+</span><span class='line'><span class="n">table</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">sheet_by_index</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>        <span class="c"># 通过索引获取xls文件第0个sheet</span>
+</span><span class='line'><span class="n">table</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">sheet_by_name</span><span class="p">(</span><span class="s">u&#39;Sheet1&#39;</span><span class="p">)</span> <span class="c"># 通过工作表名获取 sheet</span>
+</span><span class='line'><span class="c"># 获取行数和列数</span>
+</span><span class='line'><span class="n">nrows</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">nrows</span>
+</span><span class='line'><span class="n">ncols</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">ncols</span>
+</span><span class='line'><span class="c"># 获取整行和整列的值（数组）</span>
+</span><span class='line'><span class="n">table</span><span class="o">.</span><span class="n">row_values</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+</span><span class='line'><span class="n">table</span><span class="o">.</span><span class="n">col_values</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+</span><span class='line'><span class="c"># 循环行,得到索引的列表</span>
+</span><span class='line'><span class="k">for</span> <span class="n">rownum</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">nrows</span><span class="p">):</span>
+</span><span class='line'>    <span class="k">print</span> <span class="n">table</span><span class="o">.</span><span class="n">row_values</span><span class="p">(</span><span class="n">rownum</span><span class="p">)</span>
+</span><span class='line'><span class="c"># 获取单元格</span>
+</span><span class='line'><span class="n">cell_A1</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">value</span>
+</span><span class='line'><span class="n">cell_C4</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span><span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">value</span>
+</span><span class='line'><span class="c"># 分别使用行列索引</span>
+</span><span class='line'><span class="n">cell_A1</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">row</span><span class="p">(</span><span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">value</span>
+</span><span class='line'><span class="n">cell_A2</span> <span class="o">=</span> <span class="n">table</span><span class="o">.</span><span class="n">col</span><span class="p">(</span><span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">value</span>
+</span><span class='line'><span class="c"># 简单的写入</span>
+</span><span class='line'><span class="n">row</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span class='line'><span class="n">col</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span class='line'><span class="n">ctype</span> <span class="o">=</span> <span class="mi">1</span> <span class="c"># 类型 0 empty,1 string, 2 number, 3 date, 4 boolean, 5 error</span>
+</span><span class='line'><span class="n">value</span> <span class="o">=</span> <span class="s">&#39;liluo&#39;</span>
+</span><span class='line'><span class="n">xf</span> <span class="o">=</span> <span class="mi">0</span> <span class="c"># 扩展的格式化 (默认是0)</span>
+</span><span class='line'><span class="n">table</span><span class="o">.</span><span class="n">put_cell</span><span class="p">(</span><span class="n">row</span><span class="p">,</span> <span class="n">col</span><span class="p">,</span> <span class="n">ctype</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">xf</span><span class="p">)</span>
+</span><span class='line'><span class="n">table</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span> <span class="c"># 文本:u&#39;lixiaoluo&#39;</span>
+</span><span class='line'><span class="n">table</span><span class="o">.</span><span class="n">cell</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">value</span> <span class="c"># &#39;lixiaoluo&#39;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>xlwt</h2>
+
+<p>安装</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="n">sudo</span> <span class="n">easy_install</span> <span class="n">xlwt</span>  <span class="c"># windows 参考http://pypi.python.org/pypi/xlwt</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>简单使用</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+</pre></td><td class='code'><pre><code class='python'><span class='line'><span class="kn">import</span> <span class="nn">xlwt</span>
+</span><span class='line'><span class="nb">file</span> <span class="o">=</span> <span class="n">xlwt</span><span class="o">.</span><span class="n">Workbook</span><span class="p">()</span>                <span class="c"># 注意这里的Workbook首字母是大写</span>
+</span><span class='line'><span class="n">table</span> <span class="o">=</span> <span class="nb">file</span><span class="o">.</span><span class="n">add_sheet</span><span class="p">(</span><span class="s">&#39;sheet name&#39;</span><span class="p">)</span>  <span class="c"># 新建一个sheet</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">table</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="s">&#39;test&#39;</span><span class="p">)</span>               <span class="c"># 写入数据table.write(行,列,value)</span>
+</span><span class='line'>
+</span><span class='line'><span class="c"># 如果对一个单元格重复操作，会引发</span>
+</span><span class='line'><span class="c"># returns error:</span>
+</span><span class='line'><span class="c"># Exception: Attempt to overwrite cell:</span>
+</span><span class='line'><span class="c"># sheetname=u&#39;sheet 1&#39; rowx=0 colx=0</span>
+</span><span class='line'><span class="c"># 所以在打开时加cell_overwrite_ok=True解决</span>
+</span><span class='line'>
+</span><span class='line'><span class="n">table</span> <span class="o">=</span> <span class="nb">file</span><span class="o">.</span><span class="n">add_sheet</span><span class="p">(</span><span class="s">&#39;sheet name&#39;</span><span class="p">,</span><span class="n">cell_overwrite_ok</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+</span><span class='line'><span class="nb">file</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s">&#39;demo.xls&#39;</span><span class="p">)</span>     <span class="c"># 保存文件</span>
+</span><span class='line'>
+</span><span class='line'><span class="c"># 另外，使用style</span>
+</span><span class='line'><span class="n">style</span> <span class="o">=</span> <span class="n">xlwt</span><span class="o">.</span><span class="n">XFStyle</span><span class="p">()</span>    <span class="c"># 初始化样式</span>
+</span><span class='line'><span class="n">font</span> <span class="o">=</span> <span class="n">xlwt</span><span class="o">.</span><span class="n">Font</span><span class="p">()</span>        <span class="c"># 为样式创建字体</span>
+</span><span class='line'><span class="n">font</span><span class="o">.</span><span class="n">name</span> <span class="o">=</span> <span class="s">&#39;Times New Roman&#39;</span>
+</span><span class='line'><span class="n">font</span><span class="o">.</span><span class="n">bold</span> <span class="o">=</span> <span class="bp">True</span>
+</span><span class='line'><span class="n">style</span><span class="o">.</span><span class="n">font</span> <span class="o">=</span> <span class="n">font</span>         <span class="c">#为样式设置字体</span>
+</span><span class='line'><span class="n">table</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="s">&#39;some bold Times text&#39;</span><span class="p">,</span> <span class="n">style</span><span class="p">)</span> <span class="c"># 使用样式</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>xlwt 允许单元格或者整行地设置格式。还可以添加链接以及公式。
+例子： <a href="http://scienceoss.com/write-excel-files-with-python-using-xlwt/">http://scienceoss.com/write-excel-files-with-python-using-xlwt/</a></p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">落</span></span>
+
+      
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2011-01-07T21:16:00+08:00" pubdate data-updated="true">Jan 7<span>th</span>, 2011</time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/python/'>Python</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://liluo.org/blog/2011/01/python-using-xlrd-xlwt-operate-excel/" data-via="liluoliluo" data-counturl="http://liluo.org/blog/2011/01/python-using-xlrd-xlwt-operate-excel/" >Tweet</a>
+  
+  
+  
+</div>
+
+    
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2010/08/linux-firewall-iptables-configuration/" title="Previous Post: Linux firewall iptables configuration(防火墙配置)">&laquo; Linux firewall iptables configuration(防火墙配置)</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2011/03/memcached-install-and-using/" title="Next Post: Memcached 安装/使用(Python操作)">Memcached 安装/使用(Python操作) &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+  <section>
+    <h1>Comments</h1>
+    <div id="disqus_thread" aria-live="polite"><noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</div>
+  </section>
+
+</div>
+
+<aside class="sidebar">
+  
+    <section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2015/12/mysql-online-ddl/">非 DBA 也要勇敢的 Online(!) DDL</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/12/douban-linguist/">Douban Linguist</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/11/remote-tools/">Remote 之工具篇</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2013/03/we-all-love-pull-request/">我们都爱 Pull Request</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2012/08/how-to-create-python-egg/">怎样制作一个 Python Egg</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating...</li>
+  </ul>
+  
+  <a href="https://github.com/liluo">@liluo</a> on GitHub
+  
+  <script type="text/javascript">
+    $.domReady(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'liluo',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+<section>
+  <h1>Latest Tweets</h1>
+  <ul id="tweets">
+    <li class="loading">Status updating...</li>
+  </ul>
+  <script type="text/javascript">
+    $.domReady(function(){
+      getTwitterFeed("liluoliluo", 4, false);
+    });
+  </script>
+  <script src="/javascripts/twitter.js" type="text/javascript"> </script>
+  
+    <a href="http://twitter.com/liluoliluo" class="twitter-follow-button" data-show-count="false">Follow @liluoliluo</a>
+  
+</section>
+
+
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2016 - 落 -
+  <span>
+    <a href="http://www.miibeian.gov.cn" target="_blank">沪ICP备10005385号</a>
+  </span>
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+  <span>
+    <script src="http://s175.cnzz.com/stat.php?id=1892088&web_id=1892088&show=pic" language="JavaScript" charset="gb2312"></script>
+  </span>
+</p>
+
+</footer>
+  
+
+<script type="text/javascript">
+      var disqus_shortname = 'liluo';
+      
+        
+        // var disqus_developer = 1;
+        var disqus_identifier = 'http://liluo.org/blog/2011/01/python-using-xlrd-xlwt-operate-excel/';
+        var disqus_url = 'http://liluo.org/blog/2011/01/python-using-xlrd-xlwt-operate-excel/';
+        var disqus_script = 'embed.js';
+      
+    (function () {
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = 'http://' + disqus_shortname + '.disqus.com/' + disqus_script;
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    }());
+</script>
+
+
+
+
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>
